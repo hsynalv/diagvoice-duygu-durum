@@ -1,0 +1,23 @@
+__pycache__/
+.venv/
+env/
+*.pyc
+
+# VSCode / Cursor
+.vscode/
+.cursor/
+
+# Virtualenvs
+.env/
+.python-version
+
+# Logs
+logs/
+*.log
+
+# Local data / cache
+.DS_Store
+
+# Backend model dosyaları (GitHub'a gönderme)
+diagvoice-backend/models/
+diagvoice-backend/**/models/

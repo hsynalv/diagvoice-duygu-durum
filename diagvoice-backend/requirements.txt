@@ -1,0 +1,17 @@
+torch
+torchaudio
+transformers
+safetensors
+fastapi
+uvicorn
+python-multipart
+librosa
+pydub
+accelerate
+soundfile
+openpyxl
+pandas
+scikit-learn
+joblib
+matplotlib
+seaborn
