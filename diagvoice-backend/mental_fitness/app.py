@@ -4,21 +4,14 @@ import tempfile
 import traceback
 
 import fastapi
-import librosa
 import numpy as np
 import uvicorn
 from fastapi import File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydub import AudioSegment
-from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.base import BaseEstimator
 import joblib
 
-
-TARGET_SR = 16000
-MAX_SEC = float(os.environ.get("MENTAL_FITNESS_MAX_SEC", "30"))
-MAX_SEC = max(1.0, min(300.0, MAX_SEC))
-MAX_SAMPLES = int(TARGET_SR * MAX_SEC)
+from mental_fitness_classifier_v1 import extract_features
 
 app = fastapi.FastAPI()
 
@@ -51,58 +44,15 @@ except Exception:
     _model = None
 
 
-def _decode_to_float32_16k(audio_bytes: bytes, filename: str):
-    tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as tmp:
-            tmp.write(audio_bytes)
-            tmp_path = tmp.name
-
-        audio_segment = AudioSegment.from_file(tmp_path)
-        audio_segment = audio_segment.set_frame_rate(TARGET_SR).set_channels(1).set_sample_width(2)
-        wav_buffer = io.BytesIO()
-        audio_segment.export(wav_buffer, format="wav")
-        wav_buffer.seek(0)
-
-        y, sr = librosa.load(wav_buffer, sr=TARGET_SR, mono=True)
-        if y is None or len(y) == 0:
-            raise RuntimeError("Empty audio")
-
-        if len(y) > MAX_SAMPLES:
-            start = (len(y) - MAX_SAMPLES) // 2
-            y = y[start : start + MAX_SAMPLES]
-
-        m = float(abs(y).max() + 1e-6)
-        y = (y / m).astype("float32")
-        return y, sr
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.remove(tmp_path)
-            except Exception:
-                pass
-
-
-def _extract_features(y: np.ndarray, sr: int) -> np.ndarray:
-    # Basit ama deterministik bir feature seti: MFCC + temel istatistikler
-    try:
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=20)
-        mfcc_mean = mfcc.mean(axis=1)
-        mfcc_std = mfcc.std(axis=1)
-
-        rms = librosa.feature.rms(y=y)[0]
-        zcr = librosa.feature.zero_crossing_rate(y)[0]
-
-        feats = np.concatenate(
-            [
-                mfcc_mean,
-                mfcc_std,
-                np.array([rms.mean(), rms.std(), zcr.mean(), zcr.std()], dtype=np.float32),
-            ]
-        ).astype(np.float32)
-        return feats.reshape(1, -1)
-    except Exception as e:
-        raise RuntimeError(f"Feature extraction failed: {e}")
+def _bytes_to_temp_file(audio_bytes: bytes, filename: str) -> str:
+    """
+    Gelen ses bytes'ını geçici bir dosyaya yazar ve yolunu döner.
+    mental_fitness_classifier_v1.extract_features fonksiyonuyla
+    aynı veri akışını kullanmak için sadece dosya yolu veriyoruz.
+    """
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{filename}") as tmp:
+        tmp.write(audio_bytes)
+        return tmp.name
 
 
 @app.get("/")
@@ -118,36 +68,76 @@ async def analyze_mental(file: UploadFile = File(...)):
     if _model is None:
         raise HTTPException(status_code=500, detail="Mental fitness model could not be loaded. Check server logs.")
 
+    tmp_path = None
     try:
         audio_bytes = await file.read()
         if not audio_bytes:
             raise HTTPException(status_code=400, detail="Empty audio file.")
 
-        y, sr = _decode_to_float32_16k(audio_bytes, file.filename or "audio")
-        feats = _extract_features(y, sr)
+        # Bytes'ı geçici dosyaya yaz ve eğitimde kullanılan feature extractor ile özellik çıkar
+        tmp_path = _bytes_to_temp_file(audio_bytes, file.filename or "audio")
+        feats = extract_features(tmp_path, feature_set="rich")
 
-        pred_id = int(_model.predict(feats)[0])
+        if feats is None:
+            raise HTTPException(status_code=400, detail="Feature extraction returned no features.")
 
+        # Eğitim scriptindeki gibi: (n_features,) -> (1, n_features)
+        feats_reshaped = np.asarray(feats, dtype=np.float32).reshape(1, -1)
+
+        # Tahmin ve olasılıklar
+        raw_pred = _model.predict(feats_reshaped)[0]
         probs = None
+        mental_fitness_score = None
         if hasattr(_model, "predict_proba"):
-            probs_arr = _model.predict_proba(feats)[0]
+            probs_arr = _model.predict_proba(feats_reshaped)[0]
             probs = [float(x) for x in probs_arr.tolist()]
 
+            # mental_fitness_classifier_v1'deki ile aynı skor hesabı
+            classes = getattr(_model, "classes_", None)
+            if classes is not None:
+                classes_list = list(classes)
+                if "healthy" in classes_list:
+                    healthy_idx = classes_list.index("healthy")
+                    mental_fitness_score = float(probs_arr[healthy_idx] * 100.0)
+                elif "depression" in classes_list:
+                    depression_idx = classes_list.index("depression")
+                    mental_fitness_score = float((1.0 - probs_arr[depression_idx]) * 100.0)
+
         label = None
-        if hasattr(_model, "classes_"):
-            classes = list(getattr(_model, "classes_"))
-            if 0 <= pred_id < len(classes):
-                label = str(classes[pred_id])
+        pred_id = None
+        classes = getattr(_model, "classes_", None)
+        if classes is not None:
+            classes_list = list(classes)
+            # raw_pred string label olabilir (örn. "healthy"/"depression")
+            if raw_pred in classes_list:
+                pred_id = int(classes_list.index(raw_pred))
+                label = str(raw_pred)
+            else:
+                # Numeric gelirse, yine index olarak ele al
+                try:
+                    idx = int(raw_pred)
+                    if 0 <= idx < len(classes_list):
+                        pred_id = idx
+                        label = str(classes_list[idx])
+                except (TypeError, ValueError):
+                    label = str(raw_pred)
 
         return {
             "pred_id": pred_id,
             "pred_label": label,
             "probs": probs,
+            "mental_fitness_score": None if mental_fitness_score is None else float(f"{mental_fitness_score:.2f}"),
         }
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Mental fitness analysis failed: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

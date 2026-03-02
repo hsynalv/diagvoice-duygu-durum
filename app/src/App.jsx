@@ -175,6 +175,16 @@ function App() {
                 </span>
               </div>
             )}
+            {typeof mentalFitnessResult.mental_fitness_score === 'number' && (
+              <div className="result-row">
+                <span className="result-label">Canlılık Skoru</span>
+                <span className="result-value">
+                  <Tooltip text="0–100 arası; yüksek değer sesin 'sağlıklı' profile daha yakın olduğunu gösterir.">
+                    {mentalFitnessResult.mental_fitness_score.toFixed(2)}%
+                  </Tooltip>
+                </span>
+              </div>
+            )}
           </div>
         )}
 

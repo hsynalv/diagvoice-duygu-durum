@@ -228,7 +228,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                 r.raise_for_status()
                 stt_text = r.json().get("text")
             except Exception as e:
-                stt_err = str(e)
+                stt_err = f"voice_to_text request failed (url={VOICE_TO_TEXT_URL}): {e}"
 
             # Call voice-to-sentiment (audio emotion)
             audio_result: Optional[Dict[str, Any]] = None
@@ -240,7 +240,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                 r.raise_for_status()
                 audio_result = r.json()
             except Exception as e:
-                audio_err = str(e)
+                audio_err = f"voice_to_sentiment request failed (url={VOICE_TO_SENTIMENT_URL}): {e}"
 
             # Call text-to-sentiment (only if we got text)
             text_result: Optional[Dict[str, Any]] = None
@@ -251,7 +251,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                     r.raise_for_status()
                     text_result = r.json()
                 except Exception as e:
-                    text_err = str(e)
+                    text_err = f"text_to_sentiment request failed (url={TEXT_TO_SENTIMENT_URL}): {e}"
 
             # Call disease-service (healthy/sick)
             disease_result: Optional[Dict[str, Any]] = None
@@ -263,7 +263,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                 r.raise_for_status()
                 disease_result = r.json()
             except Exception as e:
-                disease_err = str(e)
+                disease_err = f"disease_service request failed (url={DISEASE_SERVICE_URL}): {e}"
 
             # Call mental-fitness service (canlıda olan modeli)
             mental_fitness_result: Optional[Dict[str, Any]] = None
@@ -275,7 +275,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                 r.raise_for_status()
                 mental_fitness_result = r.json()
             except Exception as e:
-                mental_fitness_err = str(e)
+                mental_fitness_err = f"mental_fitness request failed (url={MENTAL_FITNESS_URL}): {e}"
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
