@@ -4,6 +4,7 @@ import json
 import tempfile
 import traceback
 
+import numpy as np
 import fastapi
 import torch
 import torchaudio
@@ -31,7 +32,7 @@ app.add_middleware(
 
 MODEL_DIR = os.environ.get(
     "AGE_GENDER_MODEL_DIR",
-    "/app/age-gender-model/models/final_model_fixed",
+    "/Users/beyazskorsky/Documents/diag-duygu-durum/diagvoice-backend/models",
 )
 
 SR = 16000
@@ -99,10 +100,12 @@ def _preprocess_audio(audio_bytes: bytes) -> torch.Tensor:
         tmp_path = tmp.name
 
     try:
-        wav, sr = torchaudio.load(tmp_path)
-        wav = wav.mean(dim=0)
-        if sr != SR:
-            wav = torchaudio.functional.resample(wav, sr, SR)
+        # pydub ile yükle (m4a, wav, mp3 destekler)
+        from pydub import AudioSegment
+        audio = AudioSegment.from_file(tmp_path)
+        audio = audio.set_frame_rate(SR).set_channels(1)
+        wav = np.array(audio.get_array_of_samples(), dtype=np.float32) / 32768.0
+        wav = torch.tensor(wav, dtype=torch.float32)
         wav = torch.nan_to_num(wav)
         wav = wav[:MAX_LEN] if wav.numel() > MAX_LEN else nn.functional.pad(wav, (0, MAX_LEN - wav.numel()))
         return wav

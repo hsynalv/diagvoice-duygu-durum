@@ -8,33 +8,33 @@ const SentimentVisualizer = ({ sentiment, score }) => {
 
   const getSentimentStyle = () => {
     let color;
-    let emoji;
+    let icon;
     let bgClass;
 
     if (sentiment.toLowerCase() === 'positive') {
       color = '#059669';
-      emoji = '😊';
+      icon = 'P';
       bgClass = 'sentiment-positive';
     } else if (sentiment.toLowerCase() === 'negative') {
       color = '#DC2626';
-      emoji = '😞';
+      icon = 'N';
       bgClass = 'sentiment-negative';
     } else {
       color = '#78716C';
-      emoji = '😐';
+      icon = 'N';
       bgClass = 'sentiment-neutral';
     }
-    return { color, emoji, bgClass };
+    return { color, icon, bgClass };
   };
   
-  const { color, emoji, bgClass } = getSentimentStyle();
+  const { color, icon, bgClass } = getSentimentStyle();
   const percentage = (score * 100).toFixed(1);
 
   return (
     <div className={`card sentiment-card ${bgClass}`}>
       <h2>Analiz Sonucu</h2>
       <div className="sentiment-content">
-        <span className="sentiment-emoji">{emoji}</span>
+        <span className="sentiment-icon">{icon}</span>
         <p className="sentiment-label" style={{ color }}>
           {sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}
         </p>

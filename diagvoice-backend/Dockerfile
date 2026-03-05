@@ -25,6 +25,7 @@ COPY disease_service /app/disease_service
 COPY mental_fitness /app/mental_fitness
 COPY age-gender-model /app/age-gender-model
 COPY models /app/models
+COPY test-data /app/test-data
 COPY .env /app/.env
 
 # Sadece ana API (fusion_service) dışarı açılıyor

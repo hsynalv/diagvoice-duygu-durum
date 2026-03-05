@@ -8,6 +8,49 @@ import Tooltip from './components/Tooltip';
 import { analyzeFused } from './services/analyzeFused';
 import logo from './logo.jpg';
 
+// Probability bar component
+function ProbBar({ label, value, color }) {
+  const percentage = Math.round(value * 100);
+  return (
+    <div className="prob-bar-row">
+      <span className="prob-label">{label}</span>
+      <div className="prob-bar-container">
+        <div 
+          className="prob-bar-fill" 
+          style={{ width: `${percentage}%`, backgroundColor: color }}
+        />
+        <span className="prob-value">{percentage}%</span>
+      </div>
+    </div>
+  );
+}
+
+// Emotion mapping for audio results
+const EMOTION_LABELS = {
+  'sadness': { tr: 'Üzüntü', color: '#6366f1' },
+  'fear': { tr: 'Korku', color: '#8b5cf6' },
+  'happiness': { tr: 'Mutluluk', color: '#10b981' },
+  'anger': { tr: 'Öfke', color: '#ef4444' },
+  'happy': { tr: 'Mutlu', color: '#10b981' },
+  'sad': { tr: 'Üzgün', color: '#6366f1' },
+  'angry': { tr: 'Sinirli', color: '#ef4444' },
+  'fearful': { tr: 'Korkulu', color: '#8b5cf6' }
+};
+
+// Gender mapping
+const GENDER_LABELS = {
+  'male': { tr: 'Erkek', color: '#3b82f6' },
+  'female': { tr: 'Kadın', color: '#ec4899' }
+};
+
+function getEmotionLabel(pred_label) {
+  return EMOTION_LABELS[pred_label]?.tr || pred_label;
+}
+
+function getEmotionColor(pred_label) {
+  return EMOTION_LABELS[pred_label]?.color || '#6b7280';
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [transcribedText, setTranscribedText] = useState('');
@@ -108,200 +151,137 @@ function App() {
         )}
 
         {audioEmotionResult && (
-          <div className="card">
-            <h2>Ses Üzerinden Duygu</h2>
-            <div className="result-row">
-              <span className="result-label">Tahmin</span>
-              <span className="result-value">
-                <Tooltip text="Ses tonundan çıkarılan duygu (üzüntü, korku, mutluluk, öfke)">
-                  {audioEmotionResult.pred_label} (id: {audioEmotionResult.pred_id})
-                </Tooltip>
+          <div className="card emotion-card">
+            <div className="card-header">
+              <div className="emotion-indicator" style={{ backgroundColor: getEmotionColor(audioEmotionResult.pred_label) }}></div>
+              <h2>Ses Duygusu</h2>
+            </div>
+            <div className="main-result">
+              <span className="result-highlight" style={{ color: getEmotionColor(audioEmotionResult.pred_label) }}>
+                {getEmotionLabel(audioEmotionResult.pred_label)}
+              </span>
+              <span className="confidence-badge">
+                Güven: {Math.round((audioEmotionResult.intensity || 0) * 100)}%
               </span>
             </div>
-            <div className="result-row">
-              <span className="result-label">Intensity</span>
-              <span className="result-value">
-                <Tooltip text="Duygunun ses tonundaki yoğunluğu. 0 ile 1 arası; yüksek değer duygunun daha belirgin olduğunu gösterir.">
-                  {typeof audioEmotionResult.intensity === 'number' ? audioEmotionResult.intensity.toFixed(3) : audioEmotionResult.intensity}
-                </Tooltip>
-              </span>
-            </div>
-            <div className="result-row">
-              <span className="result-label">Olasılıklar</span>
-              <span className="result-value">
-                <Tooltip text="Üzüntü, korku, mutluluk, öfke sınıfları için model tahmin olasılıkları (sırasıyla).">
-                  {Array.isArray(audioEmotionResult.probs) ? audioEmotionResult.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
-                </Tooltip>
-              </span>
+            <div className="prob-section">
+              <h4>Olasılıklar</h4>
+              {Array.isArray(audioEmotionResult.probs) && audioEmotionResult.probs.map((prob, idx) => {
+                const labels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
+                const colors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
+                return <ProbBar key={idx} label={labels[idx]} value={prob} color={colors[idx]} />;
+              })}
             </div>
           </div>
         )}
 
         {diseaseResult && (
-          <div className="card">
-            <h2>ÜSYE Tahmini</h2>
-            <div className="result-row">
-              <span className="result-label">Tahmin</span>
-              <span className="result-value">
-                <Tooltip text="ÜSYE modeline göre ses kaydından çıkarılan sağlık tahmini (healthy: sağlıklı, sick: hasta).">
-                  {diseaseResult.pred_label === 'healthy' ? 'Sağlıklı' : diseaseResult.pred_label === 'sick' ? 'Hasta' : diseaseResult.pred_label} (id: {diseaseResult.pred_id})
-                </Tooltip>
+          <div className="card health-card">
+            <div className="card-header">
+              <div className={`health-indicator ${diseaseResult.pred_label === 'healthy' ? 'healthy' : 'sick'}`}></div>
+              <h2>Sağlık Durumu</h2>
+            </div>
+            <div className="main-result">
+              <span className={`result-highlight ${diseaseResult.pred_label === 'healthy' ? 'healthy-text' : 'sick-text'}`}>
+                {diseaseResult.pred_label === 'healthy' ? 'Sağlıklı' : 'Hasta'}
               </span>
             </div>
-            <div className="result-row">
-              <span className="result-label">Olasılıklar</span>
-              <span className="result-value">
-                <Tooltip text="Sağlıklı ve hasta sınıfları için model tahmin olasılıkları (sırasıyla).">
-                  {Array.isArray(diseaseResult.probs) ? diseaseResult.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
-                </Tooltip>
-              </span>
+            <div className="prob-section compact">
+              <ProbBar label="Sağlıklı" value={diseaseResult.probs?.[0] || 0} color="#10b981" />
+              <ProbBar label="Hasta" value={diseaseResult.probs?.[1] || 0} color="#ef4444" />
             </div>
           </div>
         )}
 
         {mentalFitnessResult && (
-          <div className="card">
-            <h2>Canlıda Olan</h2>
-            <div className="result-row">
-              <span className="result-label">Tahmin</span>
-              <span className="result-value">
-                <Tooltip text="Canlıda olan modeline göre ses kaydından çıkarılan tahmin.">
-                  {mentalFitnessResult.pred_label ?? JSON.stringify(mentalFitnessResult)}
-                  {typeof mentalFitnessResult.pred_id === 'number' ? ` (id: ${mentalFitnessResult.pred_id})` : ''}
-                </Tooltip>
+          <div className="card wellness-card">
+            <div className="card-header">
+              <div className="wellness-indicator"></div>
+              <h2>Ses Sağlığı</h2>
+            </div>
+            <div className="main-result">
+              <span className="result-highlight">
+                {mentalFitnessResult.pred_label === 'healthy' ? 'Sağlıklı Profil' : 'Değerlendirme Gerekli'}
               </span>
             </div>
-            {Array.isArray(mentalFitnessResult.probs) && (
-              <div className="result-row">
-                <span className="result-label">Olasılıklar</span>
-                <span className="result-value">
-                  <Tooltip text="Canlıda olan modelinin sınıfları için tahmin olasılıkları.">
-                    {mentalFitnessResult.probs.map((p) => Number(p).toFixed(3)).join(' | ')}
-                  </Tooltip>
-                </span>
-              </div>
-            )}
             {typeof mentalFitnessResult.mental_fitness_score === 'number' && (
-              <div className="result-row">
-                <span className="result-label">Canlılık Skoru</span>
-                <span className="result-value">
-                  <Tooltip text="0–100 arası; yüksek değer sesin 'sağlıklı' profile daha yakın olduğunu gösterir.">
-                    {mentalFitnessResult.mental_fitness_score.toFixed(2)}%
-                  </Tooltip>
-                </span>
+              <div className="score-section">
+                <div className="score-label">Ses Sağlığı Skoru</div>
+                <div className="score-bar-container">
+                  <div 
+                    className="score-bar" 
+                    style={{ width: `${mentalFitnessResult.mental_fitness_score}%`, backgroundColor: mentalFitnessResult.mental_fitness_score > 70 ? '#10b981' : mentalFitnessResult.mental_fitness_score > 40 ? '#f59e0b' : '#ef4444' }}
+                  />
+                </div>
+                <div className="score-value">{mentalFitnessResult.mental_fitness_score.toFixed(0)}%</div>
               </div>
             )}
           </div>
         )}
 
         {(valenceResult.text !== null || valenceResult.audio !== null || valenceResult.fused !== null) && (
-          <div className="card">
-            <h2>Füzyon (Text + Ses)</h2>
-            <div className="result-row">
-              <span className="result-label">Text Valence</span>
-              <span className="result-value">
-                <Tooltip text="Metin duygu analizinden gelen değer. 0 ile 1 arası; 0 olumsuz, 1 olumlu.">
-                  {typeof valenceResult.text === 'number' ? valenceResult.text.toFixed(3) : '-'}
-                </Tooltip>
-              </span>
+          <div className="card fusion-card">
+            <div className="card-header">
+              <div className="fusion-indicator"></div>
+              <h2>Genel Duygu Değerlendirmesi</h2>
             </div>
-            <div className="result-row">
-              <span className="result-label">Audio Valence</span>
-              <span className="result-value">
-                <Tooltip text="Ses duygu analizinden gelen değer. 0 ile 1 arası; 0 olumsuz, 1 olumlu.">
-                  {typeof valenceResult.audio === 'number' ? valenceResult.audio.toFixed(3) : '-'}
-                </Tooltip>
-              </span>
+            <div className="fusion-result">
+              <div className={`fusion-label ${valenceResult.fused?.label === 'positive' ? 'positive' : valenceResult.fused?.label === 'negative' ? 'negative' : 'neutral'}`}>
+                {valenceResult.fused?.label === 'positive' ? 'Olumlu' : valenceResult.fused?.label === 'negative' ? 'Olumsuz' : 'Nötr'}
+              </div>
+              <div className="fusion-confidence">
+                Güven: {Math.round((valenceResult.fused?.valence || 0) * 100)}%
+              </div>
             </div>
-            <div className="result-row">
-              <span className="result-label">Fused</span>
-              <span className="result-value">
-                <Tooltip text="Metin ve sesin birleştirilmiş sonucu. Dinamik ağırlıkla hesaplanır.">
-                  {valenceResult.fused?.label ?? '-'} ({typeof valenceResult.fused?.valence === 'number' ? valenceResult.fused.valence.toFixed(3) : '-'})
-                </Tooltip>
-              </span>
+            <div className="fusion-sources">
+              <div className="source-bar">
+                <span className="source-label">Metin</span>
+                <div className="source-bar-container">
+                  <div className="source-fill text-source" style={{ width: `${Math.round((valenceResult.text || 0) * 100)}%` }}></div>
+                </div>
+                <span className="source-value">{Math.round((valenceResult.text || 0) * 100)}%</span>
+              </div>
+              <div className="source-bar">
+                <span className="source-label">Ses</span>
+                <div className="source-bar-container">
+                  <div className="source-fill audio-source" style={{ width: `${Math.round((valenceResult.audio || 0) * 100)}%` }}></div>
+                </div>
+                <span className="source-value">{Math.round((valenceResult.audio || 0) * 100)}%</span>
+              </div>
             </div>
-            <div className="result-row">
-              <span className="result-label">w_text</span>
-              <span className="result-value">
-                <Tooltip text="Metin değerine verilen ağırlık (0–1). Yüksek değer metin duygusunun füzyonda daha güçlü etkili olduğunu gösterir.">
-                  {typeof valenceResult.fused?.w_text === 'number' ? valenceResult.fused.w_text.toFixed(3) : (valenceResult.fused?.w_text ?? '-')}
-                </Tooltip>
-              </span>
-            </div>
-            {confidenceResult && (
-              <>
-                <div className="result-row">
-                  <span className="result-label">Text Güven</span>
-                  <span className="result-value">
-                    <Tooltip text="Metin duygu analizinin güveni. 0–1 arası; yüksek değer modelin daha emin olduğunu gösterir.">
-                      {typeof confidenceResult.text === 'number' ? confidenceResult.text.toFixed(3) : '-'}
-                    </Tooltip>
-                  </span>
-                </div>
-                <div className="result-row">
-                  <span className="result-label">Audio Güven</span>
-                  <span className="result-value">
-                    <Tooltip text="Ses duygu analizinin güveni. 0–1 arası; yüksek değer modelin daha emin olduğunu gösterir.">
-                      {typeof confidenceResult.audio === 'number' ? confidenceResult.audio.toFixed(3) : '-'}
-                    </Tooltip>
-                  </span>
-                </div>
-                <div className="result-row">
-                  <span className="result-label">Uyuşmazlık</span>
-                  <span className="result-value">
-                    <Tooltip text="Metin ve ses valence değerleri arasındaki fark. Yüksek değer iki kaynağın birbiriyle çeliştiğini gösterir.">
-                      {typeof confidenceResult.disagreement === 'number' ? confidenceResult.disagreement.toFixed(3) : '-'}
-                    </Tooltip>
-                  </span>
-                </div>
-                <div className="result-row">
-                  <span className="result-label">Dinamik Füzyon</span>
-                  <span className="result-value">
-                    <Tooltip text="Güven skorlarına göre w_text ağırlığının otomatik ayarlanıp ayarlanmadığı.">
-                      {confidenceResult.dynamic_fusion ? 'Açık' : 'Kapalı'}
-                    </Tooltip>
-                  </span>
-                </div>
-              </>
+            {confidenceResult?.dynamic_fusion && (
+              <div className="fusion-note">
+                Metin ve ses ağırlığı otomatik ayarlandı
+              </div>
             )}
           </div>
         )}
         
         {ageGenderResult && (
-          <div className="card">
-            <h2>Yaş ve Cinsiyet Tahmini</h2>
-            <div className="result-row">
-              <span className="result-label">Cinsiyet</span>
-              <span className="result-value">
-                <Tooltip text="Ses kaydından tahmin edilen cinsiyet.">
-                  {ageGenderResult.gender?.pred_label ?? '-'} (id: {ageGenderResult.gender?.pred_id})
-                </Tooltip>
-              </span>
+          <div className="card profile-card">
+            <div className="card-header">
+              <div className="profile-indicator"></div>
+              <h2>Kişi Profili</h2>
             </div>
-            <div className="result-row">
-              <span className="result-label">Yaş Aralığı</span>
-              <span className="result-value">
-                <Tooltip text="Ses kaydından tahmin edilen yaş aralığı.">
-                  {ageGenderResult.agebin?.pred_label ?? '-'} (id: {ageGenderResult.agebin?.pred_id})
-                </Tooltip>
-              </span>
-            </div>
-            <div className="result-row">
-              <span className="result-label">Cinsiyet Olasılıkları</span>
-              <span className="result-value">
-                <Tooltip text="Cinsiyet sınıfları için model tahmin olasılıkları.">
-                  {Array.isArray(ageGenderResult.gender?.probs) ? ageGenderResult.gender.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
-                </Tooltip>
-              </span>
-            </div>
-            <div className="result-row">
-              <span className="result-label">Yaş Olasılıkları</span>
-              <span className="result-value">
-                <Tooltip text="Yaş aralığı sınıfları için model tahmin olasılıkları.">
-                  {Array.isArray(ageGenderResult.agebin?.probs) ? ageGenderResult.agebin.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
-                </Tooltip>
-              </span>
+            <div className="profile-grid">
+              <div className="profile-item">
+                <span className="profile-label">Cinsiyet</span>
+                <span className="profile-value" style={{ color: GENDER_LABELS[ageGenderResult.gender?.pred_label]?.color || '#374151' }}>
+                  {GENDER_LABELS[ageGenderResult.gender?.pred_label]?.tr || ageGenderResult.gender?.pred_label || '-'}
+                </span>
+                <div className="profile-confidence">
+                  {ageGenderResult.gender?.probs && (
+                    <div className="mini-bars">
+                      <div className="mini-bar" style={{ width: `${Math.round(ageGenderResult.gender.probs[0] * 100)}%`, backgroundColor: '#3b82f6' }}></div>
+                      <div className="mini-bar" style={{ width: `${Math.round(ageGenderResult.gender.probs[1] * 100)}%`, backgroundColor: '#ec4899' }}></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="profile-item">
+                <span className="profile-label">Yaş Aralığı</span>
+                <span className="profile-value">{ageGenderResult.agebin?.pred_label || '-'}</span>
+              </div>
             </div>
           </div>
         )}

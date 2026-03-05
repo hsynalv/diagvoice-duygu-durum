@@ -330,9 +330,322 @@ input[type="file"]:hover {
   gap: 0.5rem;
 }
 
-.sentiment-emoji {
-  font-size: 3.5rem;
-  line-height: 1;
+.sentiment-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.sentiment-icon.positive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.sentiment-icon.negative {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.sentiment-icon.neutral {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Modern Card Styles */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.emotion-indicator,
+.health-indicator,
+.wellness-indicator,
+.fusion-indicator,
+.profile-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.emotion-indicator {
+  background: #6b7280;
+}
+
+.health-indicator.healthy {
+  background: #10b981;
+}
+
+.health-indicator.sick {
+  background: #ef4444;
+}
+
+.wellness-indicator {
+  background: #06b6d4;
+}
+
+.fusion-indicator {
+  background: #8b5cf6;
+}
+
+.profile-indicator {
+  background: #f59e0b;
+}
+
+.main-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.result-highlight {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.result-highlight.healthy-text {
+  color: #10b981;
+}
+
+.result-highlight.sick-text {
+  color: #ef4444;
+}
+
+.confidence-badge {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface-elevated);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+/* Probability Bars */
+.prob-section {
+  margin-top: 1rem;
+}
+
+.prob-section h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.prob-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.prob-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-width: 60px;
+}
+
+.prob-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.prob-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.prob-value {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  min-width: 35px;
+  text-align: right;
+}
+
+/* Score Section */
+.score-section {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.score-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.score-bar-container {
+  height: 12px;
+  background: var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.score-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.score-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-top: 0.5rem;
+}
+
+/* Fusion Card */
+.fusion-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+.fusion-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.fusion-label.positive {
+  color: #10b981;
+}
+
+.fusion-label.negative {
+  color: #ef4444;
+}
+
+.fusion-label.neutral {
+  color: #6b7280;
+}
+
+.fusion-confidence {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.fusion-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.source-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.source-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  min-width: 45px;
+}
+
+.source-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.source-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.source-fill.text-source {
+  background: #3b82f6;
+}
+
+.source-fill.audio-source {
+  background: #8b5cf6;
+}
+
+.source-value {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-main);
+  min-width: 35px;
+  text-align: right;
+}
+
+.fusion-note {
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Profile Card */
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.profile-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.profile-label {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.profile-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.profile-confidence {
+  margin-top: 0.25rem;
+}
+
+.mini-bars {
+  display: flex;
+  gap: 2px;
+  height: 4px;
+}
+
+.mini-bar {
+  flex: 1;
+  border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 .sentiment-label {
