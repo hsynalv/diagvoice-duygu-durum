@@ -23,6 +23,7 @@ COPY voice_to_text /app/voice_to_text
 COPY voice_to_sentiment /app/voice_to_sentiment
 COPY disease_service /app/disease_service
 COPY mental_fitness /app/mental_fitness
+COPY age-gender-model /app/age-gender-model
 COPY models /app/models
 COPY .env /app/.env
 

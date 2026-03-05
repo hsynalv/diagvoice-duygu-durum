@@ -15,6 +15,7 @@ function App() {
   const [audioEmotionResult, setAudioEmotionResult] = useState(null);
   const [diseaseResult, setDiseaseResult] = useState(null);
   const [mentalFitnessResult, setMentalFitnessResult] = useState(null);
+  const [ageGenderResult, setAgeGenderResult] = useState(null);
   const [valenceResult, setValenceResult] = useState({ text: null, audio: null, fused: null });
   const [confidenceResult, setConfidenceResult] = useState(null);
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ function App() {
     setAudioEmotionResult(null);
     setDiseaseResult(null);
     setMentalFitnessResult(null);
+    setAgeGenderResult(null);
     setValenceResult({ text: null, audio: null, fused: null });
     setConfidenceResult(null);
     setCurrentAnalysisSource(sourceName);
@@ -54,6 +56,10 @@ function App() {
 
       if (result.mental_fitness) {
         setMentalFitnessResult(result.mental_fitness);
+      }
+
+      if (result.age_gender) {
+        setAgeGenderResult(result.age_gender);
       }
 
       setValenceResult({
@@ -259,6 +265,44 @@ function App() {
                 </div>
               </>
             )}
+          </div>
+        )}
+        
+        {ageGenderResult && (
+          <div className="card">
+            <h2>Yaş ve Cinsiyet Tahmini</h2>
+            <div className="result-row">
+              <span className="result-label">Cinsiyet</span>
+              <span className="result-value">
+                <Tooltip text="Ses kaydından tahmin edilen cinsiyet.">
+                  {ageGenderResult.gender?.pred_label ?? '-'} (id: {ageGenderResult.gender?.pred_id})
+                </Tooltip>
+              </span>
+            </div>
+            <div className="result-row">
+              <span className="result-label">Yaş Aralığı</span>
+              <span className="result-value">
+                <Tooltip text="Ses kaydından tahmin edilen yaş aralığı.">
+                  {ageGenderResult.agebin?.pred_label ?? '-'} (id: {ageGenderResult.agebin?.pred_id})
+                </Tooltip>
+              </span>
+            </div>
+            <div className="result-row">
+              <span className="result-label">Cinsiyet Olasılıkları</span>
+              <span className="result-value">
+                <Tooltip text="Cinsiyet sınıfları için model tahmin olasılıkları.">
+                  {Array.isArray(ageGenderResult.gender?.probs) ? ageGenderResult.gender.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
+                </Tooltip>
+              </span>
+            </div>
+            <div className="result-row">
+              <span className="result-label">Yaş Olasılıkları</span>
+              <span className="result-value">
+                <Tooltip text="Yaş aralığı sınıfları için model tahmin olasılıkları.">
+                  {Array.isArray(ageGenderResult.agebin?.probs) ? ageGenderResult.agebin.probs.map((p) => Number(p).toFixed(3)).join(' | ') : ''}
+                </Tooltip>
+              </span>
+            </div>
           </div>
         )}
         

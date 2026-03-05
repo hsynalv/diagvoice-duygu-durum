@@ -30,6 +30,7 @@ TEXT_TO_SENTIMENT_URL = os.environ.get("TEXT_TO_SENTIMENT_URL", "http://localhos
 VOICE_TO_SENTIMENT_URL = os.environ.get("VOICE_TO_SENTIMENT_URL", "http://localhost:8002/analyze-audio")
 DISEASE_SERVICE_URL = os.environ.get("DISEASE_SERVICE_URL", "http://localhost:8004/analyze-disease")
 MENTAL_FITNESS_URL = os.environ.get("MENTAL_FITNESS_URL", "http://localhost:8005/analyze-mental")
+AGE_GENDER_URL = os.environ.get("AGE_GENDER_URL", "http://localhost:8006/analyze-age-gender")
 
 HTTPX_TOTAL_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_TIMEOUT_SEC", "900"))
 HTTPX_CONNECT_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_CONNECT_TIMEOUT_SEC", "30"))
@@ -183,6 +184,7 @@ async def root():
             "voice_to_sentiment": VOICE_TO_SENTIMENT_URL,
             "disease_service": DISEASE_SERVICE_URL,
             "mental_fitness": MENTAL_FITNESS_URL,
+            "age_gender": AGE_GENDER_URL,
         },
         "fusion": {
             "w_text": FUSION_W_TEXT,
@@ -276,6 +278,18 @@ async def analyze_fused(file: UploadFile = File(...)):
                 mental_fitness_result = r.json()
             except Exception as e:
                 mental_fitness_err = f"mental_fitness request failed (url={MENTAL_FITNESS_URL}): {e}"
+
+            # Call age-gender service
+            age_gender_result: Optional[Dict[str, Any]] = None
+            age_gender_err: Optional[str] = None
+            try:
+                with open(tmp_path, "rb") as f:
+                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
+                    r = await client.post(AGE_GENDER_URL, files=files)
+                r.raise_for_status()
+                age_gender_result = r.json()
+            except Exception as e:
+                age_gender_err = f"age_gender request failed (url={AGE_GENDER_URL}): {e}"
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
@@ -331,6 +345,8 @@ async def analyze_fused(file: UploadFile = File(...)):
         "disease_error": disease_err,
         "mental_fitness": mental_fitness_result,
         "mental_fitness_error": mental_fitness_err,
+        "age_gender": age_gender_result,
+        "age_gender_error": age_gender_err,
         "text_sentiment": text_sentiment_for_response,
         "text_sentiment_error": text_err,
         "valence_text": valence_text,
