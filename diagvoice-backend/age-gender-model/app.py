@@ -18,7 +18,7 @@ app = fastapi.FastAPI()
 
 _cors_origins_raw = os.environ.get(
     "CORS_ALLOW_ORIGINS",
-    "https://diagvoice.huseyinalav.me,http://localhost:5173,http://127.0.0.1:5173","https://duygudurum.diagvoice.com",
+    "https://diagvoice.huseyinalav.me,http://localhost:5173,http://127.0.0.1:5173,https://duygudurum.diagvoice.com",
 )
 _cors_allow_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
 
