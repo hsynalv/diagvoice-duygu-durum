@@ -129,7 +129,6 @@ function App() {
       <header className="app-header">
         <img src={logo} alt="DiagVoice Logo" className="logo" />
         <div className="brand-name">DiagVoice</div>
-        <h1 className="title">Duygu Durum Analizi</h1>
       </header>
       
       <div className="main-grid">
@@ -179,7 +178,7 @@ function App() {
           <div className="card health-card">
             <div className="card-header">
               <div className={`health-indicator ${diseaseResult.pred_label === 'healthy' ? 'healthy' : 'sick'}`}></div>
-              <h2>Sağlık Durumu (ÜSYE)</h2>
+              <h2>WURSS</h2>
             </div>
             <div className="main-result">
               <span className={`result-highlight ${diseaseResult.pred_label === 'healthy' ? 'healthy-text' : 'sick-text'}`}>
@@ -197,7 +196,7 @@ function App() {
           <div className="card wellness-card">
             <div className="card-header">
               <div className="wellness-indicator"></div>
-              <h2>Ses Sağlığı (Mental Fitness)</h2>
+              <h2>Mental Fitness</h2>
             </div>
             <div className="main-result">
               <span className="result-highlight">
