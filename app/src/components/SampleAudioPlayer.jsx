@@ -36,7 +36,15 @@ const SampleAudioPlayer = ({ onSampleSelect }) => {
       <div className="sample-list">
         {sampleAudios.map((audio) => (
           <div key={audio.fileName} className="sample-item">
-            <span>{audio.name}</span>
+            <span className="sample-item-title">{audio.name}</span>
+            <audio
+              className="sample-audio-controls"
+              controls
+              src={audio.path}
+              preload="metadata"
+            >
+              Tarayıcınız ses oynatmayı desteklemiyor.
+            </audio>
             <button type="button" onClick={() => handleSelect(audio)}>Analiz Et</button>
           </div>
         ))}
