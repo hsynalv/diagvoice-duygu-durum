@@ -1,14 +1,17 @@
-import React from 'react';
-
-// Vite's way of handling static assets
-import harikaGun from '../assets/audio/bu-harika-bir-gun.m4a';
-import derstenKalacagim from '../assets/audio/dersten-kalacağım.m4a';
-import karisik from '../assets/audio/karisik.m4a';
+import test1 from '../assets/audio/test1.m4a';
+import test2 from '../assets/audio/test2.m4a';
+import test3 from '../assets/audio/test3.wav';
+import test4 from '../assets/audio/test4.wav';
+import test5 from '../assets/audio/test5.wav';
+import test6 from '../assets/audio/test6.wav';
 
 const sampleAudios = [
-  { name: "Bu harika bir gün", path: harikaGun },
-  { name: "Dersten kalacağım", path: derstenKalacagim },
-  { name: "Karışık", path: karisik },
+  { name: 'Test 1', path: test1, fileName: 'test1.m4a' },
+  { name: 'Test 2', path: test2, fileName: 'test2.m4a' },
+  { name: 'Test 3', path: test3, fileName: 'test3.wav' },
+  { name: 'Test 4', path: test4, fileName: 'test4.wav' },
+  { name: 'Test 5', path: test5, fileName: 'test5.wav' },
+  { name: 'Test 6', path: test6, fileName: 'test6.wav' },
 ];
 
 const SampleAudioPlayer = ({ onSampleSelect }) => {
@@ -16,10 +19,14 @@ const SampleAudioPlayer = ({ onSampleSelect }) => {
     try {
       const response = await fetch(audio.path);
       const blob = await response.blob();
-      onSampleSelect(blob, audio.name);
+      const type = blob.type && blob.type !== 'application/octet-stream'
+        ? blob.type
+        : (audio.fileName.endsWith('.m4a') ? 'audio/mp4' : 'audio/wav');
+      const file = new File([blob], audio.fileName, { type });
+      onSampleSelect(file, audio.name);
     } catch (error) {
-      console.error("Error fetching the audio sample:", error);
-      alert("Örnek ses dosyası yüklenirken bir hata oluştu.");
+      console.error('Error fetching the audio sample:', error);
+      alert('Örnek ses dosyası yüklenirken bir hata oluştu.');
     }
   };
 
@@ -28,9 +35,9 @@ const SampleAudioPlayer = ({ onSampleSelect }) => {
       <h2>Veya Örnek Bir Ses Seç</h2>
       <div className="sample-list">
         {sampleAudios.map((audio) => (
-          <div key={audio.name} className="sample-item">
+          <div key={audio.fileName} className="sample-item">
             <span>{audio.name}</span>
-            <button onClick={() => handleSelect(audio)}>Analiz Et</button>
+            <button type="button" onClick={() => handleSelect(audio)}>Analiz Et</button>
           </div>
         ))}
       </div>
