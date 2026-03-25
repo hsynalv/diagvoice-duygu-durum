@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import test1 from '../assets/audio/test1.m4a';
 import test2 from '../assets/audio/test2.m4a';
 import test3 from '../assets/audio/test3.wav';
@@ -15,6 +16,8 @@ const sampleAudios = [
 ];
 
 const SampleAudioPlayer = ({ onSampleSelect }) => {
+  const [active, setActive] = useState(sampleAudios[0]);
+
   const handleSelect = async (audio) => {
     try {
       const response = await fetch(audio.path);
@@ -31,23 +34,45 @@ const SampleAudioPlayer = ({ onSampleSelect }) => {
   };
 
   return (
-    <div className="card">
-      <h2>Veya Örnek Bir Ses Seç</h2>
-      <div className="sample-list">
-        {sampleAudios.map((audio) => (
-          <div key={audio.fileName} className="sample-item">
-            <span className="sample-item-title">{audio.name}</span>
-            <audio
-              className="sample-audio-controls"
-              controls
-              src={audio.path}
-              preload="metadata"
+    <div className="card card-sample">
+      <h2>Örnek sesler</h2>
+      <p className="sample-picker-hint">
+        Bir örnek seçin; aynı alandan dinleyip analizi başlatabilirsiniz.
+      </p>
+      <div className="sample-chip-grid" role="listbox" aria-label="Örnek ses listesi">
+        {sampleAudios.map((audio) => {
+          const isActive = active.fileName === audio.fileName;
+          return (
+            <button
+              key={audio.fileName}
+              type="button"
+              role="option"
+              aria-selected={isActive}
+              className={`sample-chip${isActive ? ' is-active' : ''}`}
+              onClick={() => setActive(audio)}
             >
-              Tarayıcınız ses oynatmayı desteklemiyor.
-            </audio>
-            <button type="button" onClick={() => handleSelect(audio)}>Analiz Et</button>
-          </div>
-        ))}
+              {audio.name}
+            </button>
+          );
+        })}
+      </div>
+      <div className="sample-player-panel">
+        <audio
+          key={active.fileName}
+          className="sample-shared-audio"
+          controls
+          src={active.path}
+          preload="metadata"
+        >
+          Tarayıcınız ses oynatmayı desteklemiyor.
+        </audio>
+        <button
+          type="button"
+          className="sample-analyze-btn"
+          onClick={() => handleSelect(active)}
+        >
+          {active.name} — Analiz et
+        </button>
       </div>
     </div>
   );

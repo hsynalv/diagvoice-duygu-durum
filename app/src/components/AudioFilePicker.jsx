@@ -25,8 +25,8 @@ const AudioFilePicker = ({ onFileSelect }) => {
   };
 
   return (
-    <div className="card">
-      <h2>Bilgisayardan Ses Seç</h2>
+    <div className="card card-file-picker">
+      <h2>Bilgisayardan ses</h2>
       <input
         type="file"
         accept="audio/*"
@@ -40,7 +40,6 @@ const AudioFilePicker = ({ onFileSelect }) => {
           </div>
           {previewUrl && (
             <div className="file-preview-audio-wrap">
-              <span className="result-label">Dinle</span>
               <audio
                 className="file-preview-audio"
                 controls

@@ -79,8 +79,8 @@ const AudioRecorder = ({ onRecordingComplete }) => {
   }, [audioUrl]);
 
   return (
-    <div className="card">
-      <h2>Yeni Ses Kaydı Yap</h2>
+    <div className="card card-recorder">
+      <h2>Mikrofon kaydı</h2>
       <div ref={waveContainerRef} className="waveform-container"></div>
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
         {!isRecording ? (
