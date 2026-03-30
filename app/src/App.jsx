@@ -7,6 +7,7 @@ import SentimentVisualizer from './components/SentimentVisualizer';
 import Tooltip from './components/Tooltip';
 import { analyzeFused } from './services/analyzeFused';
 import logo from './logo.jpg';
+import ModelDetailsPage from './components/ModelDetailsPage';
 
 // Probability bar component
 function ProbBar({ label, value, color }) {
@@ -59,10 +60,12 @@ function App() {
   const [diseaseResult, setDiseaseResult] = useState(null);
   const [mentalFitnessResult, setMentalFitnessResult] = useState(null);
   const [ageGenderResult, setAgeGenderResult] = useState(null);
+  const [ageGenderError, setAgeGenderError] = useState(null);
   const [valenceResult, setValenceResult] = useState({ text: null, audio: null, fused: null });
   const [confidenceResult, setConfidenceResult] = useState(null);
   const [error, setError] = useState('');
   const [currentAnalysisSource, setCurrentAnalysisSource] = useState('');
+  const [activePage, setActivePage] = useState('summary');
 
   const handleAudioAnalysis = async (audioBlob, sourceName) => {
     // Reset state
@@ -74,6 +77,7 @@ function App() {
     setDiseaseResult(null);
     setMentalFitnessResult(null);
     setAgeGenderResult(null);
+    setAgeGenderError(null);
     setValenceResult({ text: null, audio: null, fused: null });
     setConfidenceResult(null);
     setCurrentAnalysisSource(sourceName);
@@ -104,6 +108,11 @@ function App() {
       if (result.age_gender) {
         setAgeGenderResult(result.age_gender);
       }
+      if (typeof result.age_gender_error === 'string') {
+        setAgeGenderError(result.age_gender_error);
+      } else {
+        setAgeGenderError(null);
+      }
 
       setValenceResult({
         text: result.valence_text ?? null,
@@ -130,6 +139,25 @@ function App() {
         <img src={logo} alt="DiagVoice Logo" className="logo" />
         <div className="brand-name">DiagVoice</div>
       </header>
+
+      <div className="page-tabs">
+        <button
+          className={`tab-button ${activePage === 'summary' ? 'active' : 'secondary'}`}
+          onClick={() => setActivePage('summary')}
+          type="button"
+          disabled={isLoading}
+        >
+          Özet
+        </button>
+        <button
+          className={`tab-button ${activePage === 'details' ? 'active' : 'secondary'}`}
+          onClick={() => setActivePage('details')}
+          type="button"
+          disabled={isLoading}
+        >
+          Model Detayları
+        </button>
+      </div>
       
       <div className="main-grid">
         <AudioRecorder onRecordingComplete={(blob) => handleAudioAnalysis(blob, 'Yeni Kayıt')} />
@@ -142,86 +170,99 @@ function App() {
       {error && <div className="error">{error}</div>}
 
       <section className="results-section">
-        {transcribedText && (
-          <div className="card transcribed-text">
-            <h2>Çevrilen Metin</h2>
-            <p>"{transcribedText}"</p>
-          </div>
-        )}
-
-        {audioEmotionResult && (
-          <div className="card emotion-card">
-            <div className="card-header">
-              <div className="emotion-indicator" style={{ backgroundColor: getEmotionColor(audioEmotionResult.pred_label) }}></div>
-              <h2>Ses Duygusu (Emosyon)</h2>
-            </div>
-            <div className="main-result">
-              <span className="result-highlight" style={{ color: getEmotionColor(audioEmotionResult.pred_label) }}>
-                {getEmotionLabel(audioEmotionResult.pred_label)}
-              </span>
-              <span className="confidence-badge">
-                Güven: {Math.round((audioEmotionResult.intensity || 0) * 100)}%
-              </span>
-            </div>
-            <div className="prob-section">
-              <h4>Olasılıklar</h4>
-              {Array.isArray(audioEmotionResult.probs) && audioEmotionResult.probs.map((prob, idx) => {
-                const labels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
-                const colors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
-                return <ProbBar key={idx} label={labels[idx]} value={prob} color={colors[idx]} />;
-              })}
-            </div>
-          </div>
-        )}
-
-        {diseaseResult && (
-          <div className="card health-card">
-            <div className="card-header">
-              <div className={`health-indicator ${diseaseResult.pred_label === 'healthy' ? 'healthy' : 'sick'}`}></div>
-              <h2>WURSS</h2>
-            </div>
-            <div className="main-result">
-              <span className={`result-highlight ${diseaseResult.pred_label === 'healthy' ? 'healthy-text' : 'sick-text'}`}>
-                {diseaseResult.pred_label === 'healthy' ? 'Sağlıklı' : 'Hasta'}
-              </span>
-            </div>
-            <div className="prob-section compact">
-              <ProbBar label="Sağlıklı" value={diseaseResult.probs?.[0] || 0} color="#10b981" />
-              <ProbBar label="Hasta" value={diseaseResult.probs?.[1] || 0} color="#ef4444" />
-            </div>
-          </div>
-        )}
-
-        {mentalFitnessResult && (
-          <div className="card wellness-card">
-            <div className="card-header">
-              <div className="wellness-indicator"></div>
-              <h2>Mental Fitness</h2>
-            </div>
-            <div className="main-result">
-              <span className="result-highlight">
-                {mentalFitnessResult.pred_label === 'healthy' ? 'Sağlıklı Profil' : 'Değerlendirme Gerekli'}
-              </span>
-            </div>
-            {typeof mentalFitnessResult.mental_fitness_score === 'number' && (
-              <div className="score-section">
-                <div className="score-label">Ses Sağlığı Skoru</div>
-                <div className="score-bar-container">
-                  <div 
-                    className="score-bar" 
-                    style={{ width: `${mentalFitnessResult.mental_fitness_score}%`, backgroundColor: mentalFitnessResult.mental_fitness_score > 70 ? '#10b981' : mentalFitnessResult.mental_fitness_score > 40 ? '#f59e0b' : '#ef4444' }}
-                  />
-                </div>
-                <div className="score-value">{mentalFitnessResult.mental_fitness_score.toFixed(0)}%</div>
+        {activePage === 'summary' && (
+          <>
+            {transcribedText && (
+              <div className="card transcribed-text">
+                <h2>Çevrilen Metin</h2>
+                <p>"{transcribedText}"</p>
               </div>
             )}
-          </div>
+
+            {audioEmotionResult && (
+              <div className="card emotion-card">
+                <div className="card-header">
+                  <div className="emotion-indicator" style={{ backgroundColor: getEmotionColor(audioEmotionResult.pred_label) }}></div>
+                  <h2>Ses Duygusu (Emosyon)</h2>
+                </div>
+                <div className="main-result">
+                  <span className="result-highlight" style={{ color: getEmotionColor(audioEmotionResult.pred_label) }}>
+                    {getEmotionLabel(audioEmotionResult.pred_label)}
+                  </span>
+                  <span className="confidence-badge">
+                    Güven: {Math.round((audioEmotionResult.intensity || 0) * 100)}%
+                  </span>
+                </div>
+                <div className="prob-section">
+                  <h4>Olasılıklar</h4>
+                  {Array.isArray(audioEmotionResult.probs) && audioEmotionResult.probs.map((prob, idx) => {
+                    const labels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
+                    const colors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
+                    return <ProbBar key={idx} label={labels[idx]} value={prob} color={colors[idx]} />;
+                  })}
+                </div>
+              </div>
+            )}
+
+            {diseaseResult && (
+              <div className="card health-card">
+                <div className="card-header">
+                  <div className={`health-indicator ${diseaseResult.pred_label === 'healthy' ? 'healthy' : 'sick'}`}></div>
+                  <h2>WURSS</h2>
+                </div>
+                <div className="main-result">
+                  <span className={`result-highlight ${diseaseResult.pred_label === 'healthy' ? 'healthy-text' : 'sick-text'}`}>
+                    {diseaseResult.pred_label === 'healthy' ? 'Sağlıklı' : 'Hasta'}
+                  </span>
+                </div>
+                <div className="prob-section compact">
+                  <ProbBar label="Sağlıklı" value={diseaseResult.probs?.[0] || 0} color="#10b981" />
+                  <ProbBar label="Hasta" value={diseaseResult.probs?.[1] || 0} color="#ef4444" />
+                </div>
+              </div>
+            )}
+
+            {mentalFitnessResult && (
+              <div className="card wellness-card">
+                <div className="card-header">
+                  <div className="wellness-indicator"></div>
+                  <h2>Mental Fitness</h2>
+                </div>
+                <div className="main-result">
+                  <span className="result-highlight">
+                    {mentalFitnessResult.pred_label === 'healthy' ? 'Sağlıklı Profil' : 'Değerlendirme Gerekli'}
+                  </span>
+                </div>
+                {typeof mentalFitnessResult.mental_fitness_score === 'number' && (
+                  <div className="score-section">
+                    <div className="score-label">Ses Sağlığı Skoru</div>
+                    <div className="score-bar-container">
+                      <div
+                        className="score-bar"
+                        style={{ width: `${mentalFitnessResult.mental_fitness_score}%`, backgroundColor: mentalFitnessResult.mental_fitness_score > 70 ? '#10b981' : mentalFitnessResult.mental_fitness_score > 40 ? '#f59e0b' : '#ef4444' }}
+                      />
+                    </div>
+                    <div className="score-value">{mentalFitnessResult.mental_fitness_score.toFixed(0)}%</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {sentimentResult.sentiment && (
+              <SentimentVisualizer
+                sentiment={sentimentResult.sentiment}
+                score={sentimentResult.score}
+              />
+            )}
+          </>
         )}
-        
-        {sentimentResult.sentiment && (
-          <SentimentVisualizer 
-            sentiment={sentimentResult.sentiment} 
-            score={sentimentResult.score} 
+
+        {activePage === 'details' && (
+          <ModelDetailsPage
+            ageGenderResult={ageGenderResult}
+            ageGenderError={ageGenderError}
+            valenceResult={valenceResult}
+            confidenceResult={confidenceResult}
           />
         )}
       </section>

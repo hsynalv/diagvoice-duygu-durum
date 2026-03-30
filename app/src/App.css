@@ -4,6 +4,27 @@
   margin: 0 auto;
 }
 
+/* Tabs */
+.page-tabs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.5rem;
+}
+
+.tab-button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-main);
+}
+
+.tab-button.active {
+  border-color: rgba(13, 148, 136, 0.35);
+  background: var(--primary);
+  color: #fff;
+}
+
 /* Header */
 .app-header {
   text-align: center;
