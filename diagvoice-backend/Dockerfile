@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    HF_HOME=/app/.cache/huggingface
 
 WORKDIR /app
 
@@ -24,6 +25,7 @@ COPY voice_to_sentiment /app/voice_to_sentiment
 COPY disease_service /app/disease_service
 COPY mental_fitness /app/mental_fitness
 COPY age-gender-model /app/age-gender-model
+COPY depression_service /app/depression_service
 COPY models /app/models
 COPY test-data /app/test-data
 COPY .env /app/.env

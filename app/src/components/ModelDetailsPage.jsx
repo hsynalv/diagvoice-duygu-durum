@@ -39,6 +39,7 @@ const GENDER_LABELS = {
 export default function ModelDetailsPage({
   ageGenderResult,
   ageGenderError,
+  depressionResult,
   valenceResult,
   confidenceResult,
 }) {
@@ -252,8 +253,62 @@ export default function ModelDetailsPage({
     );
   };
 
+  const renderDepression = () => {
+    if (!depressionResult) return null;
+
+    const meanProb = typeof depressionResult.mean_prob_depression === 'number'
+      ? depressionResult.mean_prob_depression
+      : null;
+    const maxProb = typeof depressionResult.max_prob_depression === 'number'
+      ? depressionResult.max_prob_depression
+      : null;
+    const threshold = typeof depressionResult.threshold === 'number'
+      ? depressionResult.threshold
+      : 0.5;
+
+    const predId = typeof depressionResult.pred_id === 'number'
+      ? depressionResult.pred_id
+      : (meanProb !== null && meanProb >= threshold ? 1 : 0);
+
+    return (
+      <div className="card health-card">
+        <div className="card-header">
+          <div className="profile-indicator" style={{ background: predId === 1 ? '#ef4444' : '#10b981' }} />
+          <h2>Depresyon Detayı</h2>
+        </div>
+
+        <div className="profile-grid">
+          <div className="profile-item">
+            <div className="profile-label">Tahmin</div>
+            <div className={`profile-value ${predId === 1 ? 'sick-text' : 'healthy-text'}`}>
+              {predId === 1 ? 'Depresyon Riski' : 'Sağlıklı Profil'}
+            </div>
+            <div className="profile-confidence">Eşik: %{Math.round(threshold * 100)}</div>
+          </div>
+
+          <div className="profile-item">
+            <div className="profile-label">Segment Sayısı</div>
+            <div className="profile-value">{depressionResult.segment_count ?? '-'}</div>
+            <div className="profile-confidence">8sn pencere / 4sn kayma</div>
+          </div>
+        </div>
+
+        <div className="prob-section">
+          <h4>Skorlar</h4>
+          {meanProb !== null && (
+            <ProbBarRow label="Ortalama" value={meanProb} color={meanProb >= threshold ? '#ef4444' : '#10b981'} />
+          )}
+          {maxProb !== null && (
+            <ProbBarRow label="Maksimum" value={maxProb} color="#f59e0b" />
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div>
+    <div className="model-details-stack">
+      {renderDepression()}
       {renderAgeGender()}
       {renderValence()}
       {renderValenceBars()}

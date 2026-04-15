@@ -31,6 +31,7 @@ VOICE_TO_SENTIMENT_URL = os.environ.get("VOICE_TO_SENTIMENT_URL", "http://localh
 DISEASE_SERVICE_URL = os.environ.get("DISEASE_SERVICE_URL", "http://localhost:8004/analyze-disease")
 MENTAL_FITNESS_URL = os.environ.get("MENTAL_FITNESS_URL", "http://localhost:8005/analyze-mental")
 AGE_GENDER_URL = os.environ.get("AGE_GENDER_URL", "http://localhost:8006/analyze-age-gender")
+DEPRESSION_SERVICE_URL = os.environ.get("DEPRESSION_SERVICE_URL", "http://localhost:8007/analyze-depression")
 
 HTTPX_TOTAL_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_TIMEOUT_SEC", "900"))
 HTTPX_CONNECT_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_CONNECT_TIMEOUT_SEC", "30"))
@@ -185,6 +186,7 @@ async def root():
             "disease_service": DISEASE_SERVICE_URL,
             "mental_fitness": MENTAL_FITNESS_URL,
             "age_gender": AGE_GENDER_URL,
+            "depression_service": DEPRESSION_SERVICE_URL,
         },
         "fusion": {
             "w_text": FUSION_W_TEXT,
@@ -290,6 +292,18 @@ async def analyze_fused(file: UploadFile = File(...)):
                 age_gender_result = r.json()
             except Exception as e:
                 age_gender_err = f"age_gender request failed (url={AGE_GENDER_URL}): {e}"
+
+            # Call depression service
+            depression_result: Optional[Dict[str, Any]] = None
+            depression_err: Optional[str] = None
+            try:
+                with open(tmp_path, "rb") as f:
+                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
+                    r = await client.post(DEPRESSION_SERVICE_URL, files=files)
+                r.raise_for_status()
+                depression_result = r.json()
+            except Exception as e:
+                depression_err = f"depression_service request failed (url={DEPRESSION_SERVICE_URL}): {e}"
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
@@ -347,6 +361,8 @@ async def analyze_fused(file: UploadFile = File(...)):
         "mental_fitness_error": mental_fitness_err,
         "age_gender": age_gender_result,
         "age_gender_error": age_gender_err,
+        "depression": depression_result,
+        "depression_error": depression_err,
         "text_sentiment": text_sentiment_for_response,
         "text_sentiment_error": text_err,
         "valence_text": valence_text,

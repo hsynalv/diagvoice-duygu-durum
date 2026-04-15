@@ -58,6 +58,7 @@ function App() {
   const [sentimentResult, setSentimentResult] = useState({ sentiment: null, score: null });
   const [audioEmotionResult, setAudioEmotionResult] = useState(null);
   const [diseaseResult, setDiseaseResult] = useState(null);
+  const [depressionResult, setDepressionResult] = useState(null);
   const [mentalFitnessResult, setMentalFitnessResult] = useState(null);
   const [ageGenderResult, setAgeGenderResult] = useState(null);
   const [ageGenderError, setAgeGenderError] = useState(null);
@@ -75,6 +76,7 @@ function App() {
     setSentimentResult({ sentiment: null, score: null });
     setAudioEmotionResult(null);
     setDiseaseResult(null);
+    setDepressionResult(null);
     setMentalFitnessResult(null);
     setAgeGenderResult(null);
     setAgeGenderError(null);
@@ -99,6 +101,10 @@ function App() {
 
       if (result.disease) {
         setDiseaseResult(result.disease);
+      }
+
+      if (result.depression) {
+        setDepressionResult(result.depression);
       }
 
       if (result.mental_fitness) {
@@ -248,6 +254,36 @@ function App() {
               </div>
             )}
 
+            {depressionResult && (
+              <div className="card health-card">
+                <div className="card-header">
+                  <div className="profile-indicator" style={{ background: depressionResult.pred_id === 1 ? '#ef4444' : '#10b981' }}></div>
+                  <h2>Depresyon Skoru</h2>
+                </div>
+                <div className="main-result">
+                  <span className={`result-highlight ${depressionResult.pred_id === 1 ? 'sick-text' : 'healthy-text'}`}>
+                    {depressionResult.pred_label === 'depresyon' ? 'Depresyon Riski' : 'Sağlıklı Profil'}
+                  </span>
+                  <span className="confidence-badge">
+                    Eşik: %{Math.round((depressionResult.threshold ?? 0.5) * 100)}
+                  </span>
+                </div>
+                <div className="score-section">
+                  <div className="score-label">Ortalama Depresyon Olasılığı</div>
+                  <div className="score-bar-container">
+                    <div
+                      className="score-bar"
+                      style={{
+                        width: `${Math.max(0, Math.min(100, (depressionResult.mean_prob_depression || 0) * 100))}%`,
+                        backgroundColor: (depressionResult.mean_prob_depression || 0) >= (depressionResult.threshold ?? 0.5) ? '#ef4444' : '#10b981'
+                      }}
+                    />
+                  </div>
+                  <div className="score-value">%{Math.round((depressionResult.mean_prob_depression || 0) * 100)}</div>
+                </div>
+              </div>
+            )}
+
             {sentimentResult.sentiment && (
               <SentimentVisualizer
                 sentiment={sentimentResult.sentiment}
@@ -261,6 +297,7 @@ function App() {
           <ModelDetailsPage
             ageGenderResult={ageGenderResult}
             ageGenderError={ageGenderError}
+            depressionResult={depressionResult}
             valenceResult={valenceResult}
             confidenceResult={confidenceResult}
           />

@@ -188,6 +188,12 @@ input[type="file"]:hover {
   gap: 1.25rem;
 }
 
+.model-details-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 /* Transcribed text card */
 .transcribed-text {
   border-left: 4px solid var(--primary);
@@ -517,6 +523,14 @@ input[type="file"]:hover {
 }
 
 .result-highlight.sick-text {
+  color: #ef4444;
+}
+
+.healthy-text {
+  color: #10b981;
+}
+
+.sick-text {
   color: #ef4444;
 }
 
