@@ -2,13 +2,14 @@ import fastapi
 import uvicorn
 import librosa
 import torch
+import numpy as np
 import io
 import tempfile
 import os
 import traceback
 from pathlib import Path
 from fastapi import UploadFile, File, HTTPException
-from transformers import pipeline
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 from fastapi.middleware.cors import CORSMiddleware
 from pydub import AudioSegment
 
@@ -32,21 +33,28 @@ app.add_middleware(
 
 print("Starting server and loading model...")
 try:
-    # Cihazı belirle (varsa GPU kullan)
-    device = 0 if torch.cuda.is_available() else -1
-    print(f"Using device: {'cuda:0' if device == 0 else 'cpu'}")
+    model_id = os.environ.get("VOICE_TO_TEXT_MODEL", "openai/whisper-base")
+    use_cuda = torch.cuda.is_available()
+    device = "cuda" if use_cuda else "cpu"
+    dtype = torch.float16 if use_cuda else torch.float32
+    print(f"Using device: {device}")
 
-    # Ses tanıma modelini yükle
-    speech_to_text_pipeline = pipeline(
-        "automatic-speech-recognition",
-        model="openai/whisper-base",
-        device=device
+    processor = AutoProcessor.from_pretrained(model_id)
+    speech_to_text_model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        model_id,
+        torch_dtype=dtype,
+        low_cpu_mem_usage=True,
     )
+    speech_to_text_model.to(device)
+    speech_to_text_model.eval()
+    forced_decoder_ids = processor.get_decoder_prompt_ids(language="turkish", task="transcribe")
     print("Model loaded successfully.")
 except Exception as e:
     print("!!! FATAL: Failed to load model !!!")
     print(traceback.format_exc())
-    speech_to_text_pipeline = None
+    processor = None
+    speech_to_text_model = None
+    forced_decoder_ids = None
 
 @app.get("/")
 async def root():
@@ -60,7 +68,7 @@ async def transcribe_audio(file: UploadFile = File(...)):
     Bu versiyon, dosyayı diskte geçici olarak saklayarak bellek kullanımını optimize eder.
     """
     print("\n--- Received new transcription request ---")
-    if not speech_to_text_pipeline:
+    if speech_to_text_model is None or processor is None:
         print("Error: Model is not loaded.")
         raise HTTPException(status_code=500, detail="Model could not be loaded. Check server logs.")
 
@@ -124,8 +132,21 @@ async def transcribe_audio(file: UploadFile = File(...)):
             chunk_duration = (end_idx - start_idx) / sample_rate
             print(f"  - Processing chunk {len(chunk_texts)+1} covering samples {start_idx}:{end_idx} (~{chunk_duration:.2f}s)")
 
-            chunk_result = speech_to_text_pipeline(chunk)
-            chunk_text = chunk_result.get("text", "").strip()
+            input_features = processor(
+                chunk.astype(np.float32),
+                sampling_rate=sample_rate,
+                return_tensors="pt",
+            )
+            features = input_features["input_features"].to(device=device, dtype=dtype)
+
+            with torch.no_grad():
+                generated_ids = speech_to_text_model.generate(
+                    features,
+                    forced_decoder_ids=forced_decoder_ids,
+                    max_new_tokens=256,
+                )
+
+            chunk_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
             if chunk_text:
                 chunk_texts.append(chunk_text)
 

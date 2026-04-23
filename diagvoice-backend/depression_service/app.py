@@ -22,6 +22,7 @@ HOP_SEC = float(os.environ.get("DEPRESSION_HOP_SEC", "4"))
 TOP_DB = float(os.environ.get("DEPRESSION_TOP_DB", "25"))
 MIN_KEEP_SEC = float(os.environ.get("DEPRESSION_MIN_KEEP_SEC", "2.0"))
 MAX_SEGMENTS = int(os.environ.get("DEPRESSION_MAX_SEGMENTS", "20"))
+INFER_BATCH_SIZE = int(os.environ.get("DEPRESSION_INFER_BATCH_SIZE", "4"))
 THRESHOLD = float(os.environ.get("DEPRESSION_THRESHOLD", "0.5"))
 
 SEGMENT_LEN = int(TARGET_SR * SEGMENT_SEC)
@@ -194,20 +195,27 @@ async def analyze_depression(file: UploadFile = File(...)):
         y = _decode_to_float32_16k(tmp_path)
         segments = _make_segments(y)
 
-        inputs = feature_extractor(
-            segments,
-            sampling_rate=TARGET_SR,
-            return_tensors="pt",
-            padding=True,
-        )
-        input_values = inputs["input_values"].to(device)
-        attention_mask = inputs.get("attention_mask")
-        if attention_mask is not None:
-            attention_mask = attention_mask.to(device)
-
+        probs_list: list[np.ndarray] = []
+        step = max(1, INFER_BATCH_SIZE)
         with torch.no_grad():
-            logits = model(input_values=input_values, attention_mask=attention_mask)
-            probs_depression = torch.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
+            for i in range(0, len(segments), step):
+                batch = segments[i : i + step]
+                inputs = feature_extractor(
+                    batch,
+                    sampling_rate=TARGET_SR,
+                    return_tensors="pt",
+                    padding=True,
+                )
+                input_values = inputs["input_values"].to(device)
+                attention_mask = inputs.get("attention_mask")
+                if attention_mask is not None:
+                    attention_mask = attention_mask.to(device)
+
+                logits = model(input_values=input_values, attention_mask=attention_mask)
+                probs_batch = torch.softmax(logits, dim=1)[:, 1].detach().cpu().numpy()
+                probs_list.append(probs_batch)
+
+        probs_depression = np.concatenate(probs_list, axis=0)
 
         mean_prob = float(np.mean(probs_depression))
         max_prob = float(np.max(probs_depression))
@@ -225,6 +233,8 @@ async def analyze_depression(file: UploadFile = File(...)):
             "labels": {"0": "saglikli", "1": "depresyon"},
         }
     except Exception as e:
+        print("Depression endpoint failed:")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Depression analysis failed: {e}")
     finally:
         try:
