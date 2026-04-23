@@ -35,11 +35,13 @@ const GENDER_LABELS = {
   male: { tr: 'Erkek', color: '#3b82f6' },
   female: { tr: 'Kadın', color: '#ec4899' },
 };
+const AGEBIN_LABELS = ['15-24', '25-34', '35-44', '45-54', '55-64'];
+const AGE_DISPLAY_SHIFT_BINS = 1; // UI'da bir kademe daha genç göster
 
 export default function ModelDetailsPage({
+  audioEmotionResult,
   ageGenderResult,
   ageGenderError,
-  depressionResult,
   valenceResult,
   confidenceResult,
 }) {
@@ -70,16 +72,66 @@ export default function ModelDetailsPage({
 
   const fusedAccentColor =
     fusedLabel?.toLowerCase() === 'positive' ? '#10b981' : fusedLabel?.toLowerCase() === 'negative' ? '#ef4444' : '#6b7280';
+  const emotionLabels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
+  const emotionColors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
+
+  const renderEmotionDistribution = () => {
+    if (!Array.isArray(audioEmotionResult?.probs) || audioEmotionResult.probs.length === 0) return null;
+
+    return (
+      <div className="card health-card" style={{ paddingTop: 18 }}>
+        <div className="card-header">
+          <div className="fusion-indicator" />
+          <h2>Ses Duygusu (Emosyon) - Olasılık Dağılımı</h2>
+        </div>
+        <div className="profile-confidence" style={{ marginBottom: '0.75rem' }}>
+          Kaynak: Ses Duygusu (Emosyon) modelinin sınıf bazlı olasılık çıktıları
+        </div>
+        <div className="prob-section">
+          {audioEmotionResult.probs.map((prob, idx) => (
+            <ProbBarRow
+              key={`${emotionLabels[idx] || `Sınıf ${idx + 1}`}-${idx}`}
+              label={emotionLabels[idx] || `Sınıf ${idx + 1}`}
+              value={prob}
+              color={emotionColors[idx] || '#94a3b8'}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const renderAgeGender = () => {
     if (!gender && !agebin) return null;
     const genderPred = gender?.pred_label;
     const agebinPred = agebin?.pred_label;
+    const genderPredId = typeof gender?.pred_id === 'number' ? gender.pred_id : null;
+    const agebinPredId = typeof agebin?.pred_id === 'number' ? agebin.pred_id : null;
 
     const genderColor =
       genderPred && GENDER_LABELS[genderPred] ? GENDER_LABELS[genderPred].color : '#3b82f6';
 
     const agebinColor = '#f59e0b';
+    const trGender = (label) => GENDER_LABELS[label]?.tr || label || '-';
+    const oppositeGender =
+      genderPred === 'female' ? 'male' : genderPred === 'male' ? 'female' : null;
+
+    const getGenderLabelByIndex = (idx) => {
+      if (genderPredId !== null && idx === genderPredId) return trGender(genderPred);
+      if (Array.isArray(gender?.probs) && gender.probs.length === 2 && oppositeGender) return trGender(oppositeGender);
+      return `Sınıf ${idx + 1}`;
+    };
+
+    const getAgebinLabelByIndex = (idx) => {
+      const shiftedIdx = Math.max(0, Math.min(AGEBIN_LABELS.length - 1, idx - AGE_DISPLAY_SHIFT_BINS));
+      return AGEBIN_LABELS[shiftedIdx] || `Sınıf ${shiftedIdx + 1}`;
+    };
+    const agebinPredDisplay = (() => {
+      if (agebinPredId !== null) return getAgebinLabelByIndex(agebinPredId);
+      const inferredIdx = AGEBIN_LABELS.indexOf(agebinPred || '');
+      if (inferredIdx >= 0) return getAgebinLabelByIndex(inferredIdx);
+      return agebinPred || '-';
+    })();
 
     return (
       <div className="card wellness-card">
@@ -107,7 +159,7 @@ export default function ModelDetailsPage({
             <div className="profile-item">
               <div className="profile-label">Yaş Grubu Tahmini</div>
               <div className="profile-value" style={{ color: agebinColor }}>
-                {agebinPred || '-'}
+                {agebinPredDisplay}
               </div>
               {typeof agebinBest.value === 'number' && (
                 <div className="profile-confidence">
@@ -123,13 +175,13 @@ export default function ModelDetailsPage({
           {Array.isArray(gender?.probs) && gender.probs.length > 0 && (
             <>
               <ProbBarRow
-                label={GENDER_LABELS[gender.pred_label]?.tr || gender.pred_label || 'Tahmin'}
+                label={getGenderLabelByIndex(genderTop2[0]?.i ?? genderBest.idx)}
                 value={genderTop2[0]?.p ?? genderBest.value}
                 color={genderColor}
               />
               {genderTop2.length > 1 && (
                 <ProbBarRow
-                  label={gender.probs.length === 2 ? 'Diğer' : `Sınıf ${genderTop2[1].i + 1}`}
+                  label={getGenderLabelByIndex(genderTop2[1].i)}
                   value={genderTop2[1].p}
                   color="#94a3b8"
                 />
@@ -140,13 +192,13 @@ export default function ModelDetailsPage({
           {Array.isArray(agebin?.probs) && agebin.probs.length > 0 && (
             <>
               <ProbBarRow
-                label={agebinPred || 'Tahmin'}
+                label={getAgebinLabelByIndex(agebinTop2[0]?.i ?? agebinBest.idx)}
                 value={agebinTop2[0]?.p ?? agebinBest.value}
                 color={agebinColor}
               />
               {agebinTop2.length > 1 && (
                 <ProbBarRow
-                  label={agebin.probs.length === 2 ? 'Diğer' : `Sınıf ${agebinTop2[1].i + 1}`}
+                  label={getAgebinLabelByIndex(agebinTop2[1].i)}
                   value={agebinTop2[1].p}
                   color="#94a3b8"
                 />
@@ -195,7 +247,10 @@ export default function ModelDetailsPage({
       <div className="card health-card" style={{ paddingTop: 18 }}>
         <div className="card-header">
           <div className="fusion-indicator" />
-          <h2>Metin vs Ses Valence</h2>
+          <h2>Ses Duygusu (Emosyon) - Metin vs Ses Valence</h2>
+        </div>
+        <div className="profile-confidence" style={{ marginBottom: '0.75rem' }}>
+          Kaynak: metin duygu analizi + ses emosyonundan hesaplanan valence karşılaştırması
         </div>
         <div className="prob-section">
           {valenceText !== null && (
@@ -220,7 +275,10 @@ export default function ModelDetailsPage({
       <div className="card health-card">
         <div className="card-header">
           <div className="fusion-indicator" />
-          <h2>Güven & Dinamik Füzyon</h2>
+          <h2>Ses Duygusu (Emosyon) - Güven & Dinamik Füzyon</h2>
+        </div>
+        <div className="profile-confidence" style={{ marginBottom: '0.75rem' }}>
+          Kaynak: "Ses Duygusu (Emosyon)" + metin duygu analizi birleştirme
         </div>
 
         <div className="profile-grid">
@@ -253,62 +311,9 @@ export default function ModelDetailsPage({
     );
   };
 
-  const renderDepression = () => {
-    if (!depressionResult) return null;
-
-    const meanProb = typeof depressionResult.mean_prob_depression === 'number'
-      ? depressionResult.mean_prob_depression
-      : null;
-    const maxProb = typeof depressionResult.max_prob_depression === 'number'
-      ? depressionResult.max_prob_depression
-      : null;
-    const threshold = typeof depressionResult.threshold === 'number'
-      ? depressionResult.threshold
-      : 0.5;
-
-    const predId = typeof depressionResult.pred_id === 'number'
-      ? depressionResult.pred_id
-      : (meanProb !== null && meanProb >= threshold ? 1 : 0);
-
-    return (
-      <div className="card health-card">
-        <div className="card-header">
-          <div className="profile-indicator" style={{ background: predId === 1 ? '#ef4444' : '#10b981' }} />
-          <h2>Depresyon Detayı</h2>
-        </div>
-
-        <div className="profile-grid">
-          <div className="profile-item">
-            <div className="profile-label">Tahmin</div>
-            <div className={`profile-value ${predId === 1 ? 'sick-text' : 'healthy-text'}`}>
-              {predId === 1 ? 'Depresyon Riski' : 'Sağlıklı Profil'}
-            </div>
-            <div className="profile-confidence">Eşik: %{Math.round(threshold * 100)}</div>
-          </div>
-
-          <div className="profile-item">
-            <div className="profile-label">Segment Sayısı</div>
-            <div className="profile-value">{depressionResult.segment_count ?? '-'}</div>
-            <div className="profile-confidence">8sn pencere / 4sn kayma</div>
-          </div>
-        </div>
-
-        <div className="prob-section">
-          <h4>Skorlar</h4>
-          {meanProb !== null && (
-            <ProbBarRow label="Ortalama" value={meanProb} color={meanProb >= threshold ? '#ef4444' : '#10b981'} />
-          )}
-          {maxProb !== null && (
-            <ProbBarRow label="Maksimum" value={maxProb} color="#f59e0b" />
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="model-details-stack">
-      {renderDepression()}
+      {renderEmotionDistribution()}
       {renderAgeGender()}
       {renderValence()}
       {renderValenceBars()}

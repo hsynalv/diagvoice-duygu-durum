@@ -12,7 +12,7 @@ import torch.nn as nn
 import uvicorn
 from fastapi import File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from transformers import AutoModel
+from transformers import AutoFeatureExtractor, AutoModel, AutoModelForAudioClassification
 
 app = fastapi.FastAPI()
 
@@ -38,6 +38,10 @@ MODEL_DIR = os.environ.get(
 SR = 16000
 MAX_LEN = SR * 4
 BASE_MODEL = "microsoft/wavlm-base"
+GENDER_MODEL_ID = os.environ.get(
+    "GENDER_MODEL_ID",
+    "alefiury/wav2vec2-large-xlsr-53-gender-recognition-librispeech",
+)
 
 gender_labels = []
 agebin_labels = []
@@ -45,6 +49,9 @@ gender2id = {}
 agebin2id = {}
 model = None
 device = None
+gender_model = None
+gender_feature_extractor = None
+gender_model_sr = 16000
 
 
 class MultiTask(nn.Module):
@@ -63,7 +70,7 @@ class MultiTask(nn.Module):
 
 
 def _load_model():
-    global gender_labels, agebin_labels, gender2id, agebin2id, model, device
+    global gender_labels, agebin_labels, gender2id, agebin2id, model, device, gender_model, gender_feature_extractor, gender_model_sr
 
     print("Loading age-gender model...")
     try:
@@ -85,10 +92,25 @@ def _load_model():
         model.to(device)
         model.eval()
         print(f"Model loaded from {model_path} on {device}")
+
+        try:
+            print(f"Loading ready gender model: {GENDER_MODEL_ID}")
+            gender_feature_extractor = AutoFeatureExtractor.from_pretrained(GENDER_MODEL_ID)
+            gender_model = AutoModelForAudioClassification.from_pretrained(GENDER_MODEL_ID).to(device)
+            gender_model.eval()
+            gender_model_sr = int(getattr(gender_feature_extractor, "sampling_rate", SR) or SR)
+            print(f"Ready gender model loaded (sr={gender_model_sr})")
+        except Exception as ge:
+            print(f"Ready gender model could not be loaded, fallback will be used: {ge}")
+            print(traceback.format_exc())
+            gender_model = None
+            gender_feature_extractor = None
     except Exception as e:
         print(f"!!! FATAL: Failed to load age-gender model: {e} !!!")
         print(traceback.format_exc())
         model = None
+        gender_model = None
+        gender_feature_extractor = None
 
 
 _load_model()
@@ -117,6 +139,64 @@ def _preprocess_audio(audio_bytes: bytes) -> torch.Tensor:
                 pass
 
 
+def _normalize_gender_label(raw: str) -> str:
+    s = str(raw or "").strip().lower()
+    if "fem" in s or "woman" in s or "female" in s or s in {"f", "kadin", "kadın"}:
+        return "female"
+    if "male" in s or "man" in s or s in {"m", "erkek"}:
+        return "male"
+    return "female" if s.endswith("0") else "male"
+
+
+def _predict_gender_ready_model(wav_mono_16k: torch.Tensor):
+    if gender_model is None or gender_feature_extractor is None:
+        return None
+
+    wav = wav_mono_16k.detach().cpu()
+    if wav.dim() != 1:
+        wav = wav.squeeze()
+    if gender_model_sr != SR:
+        wav = torchaudio.functional.resample(wav, orig_freq=SR, new_freq=gender_model_sr)
+
+    x = wav.numpy().astype(np.float32)
+    inputs = gender_feature_extractor(
+        x,
+        sampling_rate=gender_model_sr,
+        return_tensors="pt",
+        padding=True,
+    )
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+
+    with torch.no_grad():
+        out = gender_model(**inputs)
+        probs = torch.softmax(out.logits, dim=-1).cpu().numpy()[0]
+
+    id2label = getattr(gender_model.config, "id2label", None) or {}
+    mapped = []
+    for i, p in enumerate(probs.tolist()):
+        raw_label = id2label.get(i, str(i))
+        mapped.append((_normalize_gender_label(raw_label), float(p)))
+
+    female_prob = 0.0
+    male_prob = 0.0
+    for lab, p in mapped:
+        if lab == "female":
+            female_prob += p
+        elif lab == "male":
+            male_prob += p
+
+    total = female_prob + male_prob
+    if total <= 0:
+        female_prob, male_prob = 0.5, 0.5
+    else:
+        female_prob, male_prob = female_prob / total, male_prob / total
+
+    probs_out = [female_prob, male_prob]
+    pred_id = int(np.argmax(np.asarray(probs_out)))
+    pred_label = ["female", "male"][pred_id]
+    return {"pred_id": pred_id, "pred_label": pred_label, "probs": probs_out}
+
+
 @app.get("/")
 async def root():
     return {
@@ -142,16 +222,29 @@ async def analyze_age_gender(file: UploadFile = File(...)):
 
         with torch.no_grad():
             lg, la = model(wav)
-            g_probs = torch.softmax(lg, dim=-1).cpu().numpy()[0]
+            g_probs_mt = torch.softmax(lg, dim=-1).cpu().numpy()[0]
             a_probs = torch.softmax(la, dim=-1).cpu().numpy()[0]
-            g_pred = int(lg.argmax(-1).cpu().item())
+            g_pred_mt = int(lg.argmax(-1).cpu().item())
             a_pred = int(la.argmax(-1).cpu().item())
+
+        gender_ready = _predict_gender_ready_model(wav.squeeze(0).cpu())
+        if gender_ready is None:
+            g_probs = [float(x) for x in g_probs_mt.tolist()]
+            g_pred = g_pred_mt
+            g_label = gender_labels[g_pred]
+            gender_source = "multitask_fallback"
+        else:
+            g_probs = [float(x) for x in gender_ready["probs"]]
+            g_pred = int(gender_ready["pred_id"])
+            g_label = str(gender_ready["pred_label"])
+            gender_source = "ready_model"
 
         return {
             "gender": {
                 "pred_id": g_pred,
-                "pred_label": gender_labels[g_pred],
-                "probs": [float(x) for x in g_probs.tolist()],
+                "pred_label": g_label,
+                "probs": g_probs,
+                "source": gender_source,
             },
             "agebin": {
                 "pred_id": a_pred,

@@ -199,14 +199,6 @@ function App() {
                     Güven: {Math.round((audioEmotionResult.intensity || 0) * 100)}%
                   </span>
                 </div>
-                <div className="prob-section">
-                  <h4>Olasılıklar</h4>
-                  {Array.isArray(audioEmotionResult.probs) && audioEmotionResult.probs.map((prob, idx) => {
-                    const labels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
-                    const colors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
-                    return <ProbBar key={idx} label={labels[idx]} value={prob} color={colors[idx]} />;
-                  })}
-                </div>
               </div>
             )}
 
@@ -295,6 +287,7 @@ function App() {
 
         {activePage === 'details' && (
           <ModelDetailsPage
+            audioEmotionResult={audioEmotionResult}
             ageGenderResult={ageGenderResult}
             ageGenderError={ageGenderError}
             depressionResult={depressionResult}
