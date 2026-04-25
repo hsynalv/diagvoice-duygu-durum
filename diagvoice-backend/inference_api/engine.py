@@ -182,6 +182,23 @@ def _fill_text_embeddings(
             row[c] = float("nan")
 
 
+def _validate_feature_coverage(required_cols: list[str], row: dict[str, Any], max_missing_ratio: float = 0.1) -> None:
+    """Modelin beklediği kolonların büyük kısmı yoksa yanıltıcı sabit skor üretimini engelle."""
+    if not required_cols:
+        return
+    missing = [c for c in required_cols if c not in row]
+    ratio = len(missing) / float(len(required_cols))
+    if ratio > max_missing_ratio:
+        sample = ", ".join(missing[:20])
+        raise ValueError(
+            "Feature set uyumsuz: "
+            f"model {len(required_cols)} kolon bekliyor, {len(missing)} kolon eksik "
+            f"({ratio:.1%}). Ornek eksikler: {sample}. "
+            "Eğitimdeki code/features pipeline'ini aynen kullanin (DIAGVOICE_CODE_ROOT) "
+            "veya modeli mevcut feature set ile yeniden eğitin."
+        )
+
+
 def predict_proba_from_bundle(
     bundle: dict[str, Any], row: dict[str, Any], config: dict[str, Any]
 ) -> float:
@@ -196,6 +213,7 @@ def predict_proba_from_bundle(
         cols = list(bundle.get("feature_columns") or [])
         if not cols:
             raise ValueError("bundle'da feature_columns yok")
+        _validate_feature_coverage(cols, row)
 
         X = _vectorize(cols, row)
         t = bundle["imputer"].transform(X)
@@ -211,6 +229,7 @@ def predict_proba_from_bundle(
         emb = list(bundle.get("embed_columns") or [])
         if not sc or not emb:
             raise ValueError("scalar_embed_pca: scalar_columns / embed_columns eksik")
+        _validate_feature_coverage(sc, row)
         te = config.get("text_embeddings") or {}
         model_id = str(te.get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"))
         _fill_text_embeddings(
