@@ -4,6 +4,9 @@ transformers
 safetensors
 fastapi
 uvicorn
+flask
+pyyaml
+sentence-transformers
 python-multipart
 librosa
 pydub

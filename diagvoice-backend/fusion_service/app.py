@@ -8,6 +8,7 @@ import httpx
 import uvicorn
 from fastapi import File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 app = fastapi.FastAPI()
 
@@ -32,6 +33,15 @@ DISEASE_SERVICE_URL = os.environ.get("DISEASE_SERVICE_URL", "http://localhost:80
 MENTAL_FITNESS_URL = os.environ.get("MENTAL_FITNESS_URL", "http://localhost:8005/analyze-mental")
 AGE_GENDER_URL = os.environ.get("AGE_GENDER_URL", "http://localhost:8006/analyze-age-gender")
 DEPRESSION_SERVICE_URL = os.environ.get("DEPRESSION_SERVICE_URL", "http://localhost:8007/analyze-depression")
+
+# benchmark_v2 (inference_api Flask, iç ağ) — boş string ile kapatılabilir
+_inference_url_raw = os.environ.get("INFERENCE_API_URL")
+if _inference_url_raw is None:
+    INFERENCE_API_URL = "http://127.0.0.1:5008"
+elif not str(_inference_url_raw).strip():
+    INFERENCE_API_URL = ""
+else:
+    INFERENCE_API_URL = str(_inference_url_raw).strip().rstrip("/")
 
 HTTPX_TOTAL_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_TIMEOUT_SEC", "900"))
 HTTPX_CONNECT_TIMEOUT_SEC = float(os.environ.get("FUSION_HTTP_CONNECT_TIMEOUT_SEC", "30"))
@@ -187,6 +197,15 @@ async def root():
             "mental_fitness": MENTAL_FITNESS_URL,
             "age_gender": AGE_GENDER_URL,
             "depression_service": DEPRESSION_SERVICE_URL,
+            "benchmark_inference": INFERENCE_API_URL or None,
+        },
+        "proxy": {
+            "depression": "POST /analyze-depression (multipart file) -> forwards to depression_service",
+            "benchmark_v2": (
+                f"POST {INFERENCE_API_URL}/predict (internal) — field 'audio', form 'transcript'"
+                if INFERENCE_API_URL
+                else "disabled (INFERENCE_API_URL empty)"
+            ),
         },
         "fusion": {
             "w_text": FUSION_W_TEXT,
@@ -196,6 +215,51 @@ async def root():
             "audio_valence_weights": AUDIO_VALENCE_WEIGHTS,
         },
     }
+
+
+@app.post("/analyze-depression")
+async def proxy_analyze_depression(file: UploadFile = File(...)):
+    """
+    Aracı endpoint: gelen ses dosyasını doğrudan depresyon servisine iletir.
+    Yanıt gövdesi ve HTTP durumu depresyon servisiyle aynıdır (JSON).
+    """
+    tmp_path: Optional[str] = None
+    try:
+        suffix = ""
+        if file.filename:
+            safe = file.filename.replace("/", "_").replace("\\", "_")
+            suffix = f"_{safe}"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_path = tmp.name
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                tmp.write(chunk)
+
+        timeout = httpx.Timeout(
+            HTTPX_TOTAL_TIMEOUT_SEC,
+            connect=HTTPX_CONNECT_TIMEOUT_SEC,
+            read=HTTPX_READ_TIMEOUT_SEC,
+        )
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            with open(tmp_path, "rb") as f:
+                files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
+                r = await client.post(DEPRESSION_SERVICE_URL, files=files)
+
+        try:
+            body = r.json()
+        except Exception:
+            body = {"detail": r.text or "Upstream returned non-JSON"}
+
+        return JSONResponse(status_code=r.status_code, content=body)
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
 
 
 @app.post("/analyze-fused")
@@ -220,6 +284,9 @@ async def analyze_fused(file: UploadFile = File(...)):
             connect=HTTPX_CONNECT_TIMEOUT_SEC,
             read=HTTPX_READ_TIMEOUT_SEC,
         )
+
+        benchmark_v2_result: Optional[Dict[str, Any]] = None
+        benchmark_v2_err: Optional[str] = None
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             # Call voice-to-text
@@ -304,6 +371,25 @@ async def analyze_fused(file: UploadFile = File(...)):
                 depression_result = r.json()
             except Exception as e:
                 depression_err = f"depression_service request failed (url={DEPRESSION_SERVICE_URL}): {e}"
+
+            # benchmark_v2 (is_sağlığı tabular joblib) — iç Flask inference_api
+            if INFERENCE_API_URL:
+                predict_url = f"{INFERENCE_API_URL}/predict"
+                try:
+                    with open(tmp_path, "rb") as f:
+                        files = {
+                            "audio": (
+                                (file.filename or "audio.wav").replace("/", "_").replace("\\", "_"),
+                                f,
+                                file.content_type or "application/octet-stream",
+                            )
+                        }
+                        data = {"transcript": stt_text or ""}
+                        r = await client.post(predict_url, files=files, data=data)
+                    r.raise_for_status()
+                    benchmark_v2_result = r.json()
+                except Exception as e:
+                    benchmark_v2_err = f"benchmark_inference request failed (url={predict_url}): {e}"
     finally:
         if tmp_path and os.path.exists(tmp_path):
             try:
@@ -363,6 +449,8 @@ async def analyze_fused(file: UploadFile = File(...)):
         "age_gender_error": age_gender_err,
         "depression": depression_result,
         "depression_error": depression_err,
+        "benchmark_v2": benchmark_v2_result,
+        "benchmark_v2_error": benchmark_v2_err,
         "text_sentiment": text_sentiment_for_response,
         "text_sentiment_error": text_err,
         "valence_text": valence_text,

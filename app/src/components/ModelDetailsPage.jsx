@@ -42,6 +42,8 @@ export default function ModelDetailsPage({
   audioEmotionResult,
   ageGenderResult,
   ageGenderError,
+  benchmarkV2Result,
+  benchmarkV2Error,
   valenceResult,
   confidenceResult,
 }) {
@@ -74,6 +76,99 @@ export default function ModelDetailsPage({
     fusedLabel?.toLowerCase() === 'positive' ? '#10b981' : fusedLabel?.toLowerCase() === 'negative' ? '#ef4444' : '#6b7280';
   const emotionLabels = ['Üzüntü', 'Korku', 'Mutluluk', 'Öfke'];
   const emotionColors = ['#6366f1', '#8b5cf6', '#10b981', '#ef4444'];
+
+  const renderBenchmarkV2 = () => {
+    if (!benchmarkV2Result && !benchmarkV2Error) return null;
+
+    const errMsg =
+      benchmarkV2Error ||
+      (benchmarkV2Result?.error
+        ? typeof benchmarkV2Result.error === 'string'
+          ? benchmarkV2Result.error
+          : JSON.stringify(benchmarkV2Result.error)
+        : null);
+
+    const b = benchmarkV2Result;
+    const ok =
+      b &&
+      typeof b.positive_class_probability === 'number' &&
+      !b.error;
+
+    const predId = typeof b?.predicted_class === 'number' ? b.predicted_class : null;
+    const thresh = typeof b?.threshold_tuned === 'number' ? b.threshold_tuned : 0.5;
+    const pPos = typeof b?.positive_class_probability === 'number' ? b.positive_class_probability : null;
+
+    return (
+      <div className="card health-card" style={{ paddingTop: 18 }}>
+        <div className="card-header">
+          <div
+            className="profile-indicator"
+            style={{
+              background: errMsg ? '#94a3b8' : predId === 1 ? '#f59e0b' : '#10b981',
+            }}
+          />
+          <h2>Benchmark v2 — tam çıktı</h2>
+        </div>
+        <div className="profile-confidence" style={{ marginBottom: '0.75rem' }}>
+          Kaynak: fusion → iç inference_api (tabular joblib). Sınıf 0/1 eğitim etiketine bağlıdır.
+        </div>
+
+        {errMsg && <div className="error" style={{ marginBottom: '1rem' }}>{errMsg}</div>}
+
+        {ok && (
+          <>
+            <div className="profile-grid">
+              <div className="profile-item">
+                <div className="profile-label">Tahmin</div>
+                <div className={`profile-value ${predId === 1 ? 'sick-text' : 'healthy-text'}`}>
+                  {predId === 1 ? 'Tanılı riski' : 'Sağlıklı profil'}
+                </div>
+                <div className="profile-confidence">predicted_class: {predId}</div>
+              </div>
+              <div className="profile-item">
+                <div className="profile-label">P(tanılı)</div>
+                <div className="profile-value">{formatPct01(pPos, 1) || '-'}</div>
+                <div className="profile-confidence">Eşik: {formatPct01(thresh, 0) || '-'}</div>
+              </div>
+              <div className="profile-item">
+                <div className="profile-label">Eşik hedefi</div>
+                <div className="profile-value">{b.threshold_objective || '-'}</div>
+                <div className="profile-confidence">threshold_objective</div>
+              </div>
+              <div className="profile-item">
+                <div className="profile-label">Model modu</div>
+                <div className="profile-value">{b.mode || '-'}</div>
+                <div className="profile-confidence">bundle.mode</div>
+              </div>
+            </div>
+
+            {b.class_names_hint && (
+              <div className="profile-confidence" style={{ marginBottom: '0.75rem' }}>
+                {b.class_names_hint}
+              </div>
+            )}
+
+            <div className="prob-section">
+              <h4>Ham JSON</h4>
+              <pre
+                style={{
+                  margin: 0,
+                  padding: '12px',
+                  background: 'rgba(0,0,0,0.25)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  overflow: 'auto',
+                  maxHeight: 280,
+                }}
+              >
+                {JSON.stringify(b, null, 2)}
+              </pre>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const renderEmotionDistribution = () => {
     if (!Array.isArray(audioEmotionResult?.probs) || audioEmotionResult.probs.length === 0) return null;
@@ -313,6 +408,7 @@ export default function ModelDetailsPage({
 
   return (
     <div className="model-details-stack">
+      {renderBenchmarkV2()}
       {renderEmotionDistribution()}
       {renderAgeGender()}
       {renderValence()}

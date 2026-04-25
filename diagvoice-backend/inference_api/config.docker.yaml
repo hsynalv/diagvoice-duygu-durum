@@ -1,0 +1,14 @@
+# Konteyner içi inference — ağır / opsiyonel bağımlılıklar kapalı.
+random_seed: 42
+
+audio_features:
+  target_sr: 16000
+  top_db: 35.0
+  hop_length: 512
+  praat_voice: false
+  opensmile_egemaps: false
+
+text_embeddings:
+  enabled: false
+  model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  batch_size: 16

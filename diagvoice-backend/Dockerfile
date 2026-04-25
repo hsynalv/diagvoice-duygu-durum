@@ -2,7 +2,9 @@ FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    HF_HOME=/app/.cache/huggingface
+    HF_HOME=/app/.cache/huggingface \
+    INFERENCE_API_URL=http://127.0.0.1:5008 \
+    DIAGVOICE_BENCHMARK_CONFIG=/app/inference_api/config.docker.yaml
 
 WORKDIR /app
 
@@ -19,6 +21,8 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 COPY fusion_service /app/fusion_service
+COPY inference_api /app/inference_api
+COPY code /app/code
 COPY text_to_sentiment /app/text_to_sentiment
 COPY voice_to_text /app/voice_to_text
 COPY voice_to_sentiment /app/voice_to_sentiment

@@ -1,0 +1,48 @@
+# benchmark_v2 örnek yapılandırma — kopyalayıp config.yaml yapın veya --config ile verin.
+# Tüm göreli yollar proje köküne (is-sagligi) göredir.
+
+veriseti: veriseti
+transcripts_root: outputs/transcribe_free_speech
+
+random_seed: 42
+
+split:
+  # stratified_rows: dosya bazlı | group_participant: aynı participant_core_stem tek bölmeye düşmez
+  mode: group_participant
+  train_frac: 0.6
+  val_frac: 0.2
+  test_frac: 0.2
+
+ssl:
+  model: facebook/wav2vec2-base
+  device: cuda
+  chunk_sec: 20.0
+  min_chunk_sec: 1.0
+  pooling: mean_std_max
+
+audio_features:
+  target_sr: 16000
+  top_db: 35.0
+  hop_length: 512
+  # true: Praat + parselmouth (jitter/shimmer/HNR). Kurulum yoksa false.
+  praat_voice: true
+  # true: openSMILE eGeMAPS v2 functionals → osm_* sütunları (pip install opensmile)
+  opensmile_egemaps: true
+
+# Sentence-transformers: enabled true ise 03 tabular adımında otomatik gömme üretir (--with-text-embeddings ile aynı)
+text_embeddings:
+  enabled: false
+  model: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+  batch_size: 16
+
+eval:
+  # Geriye dönük: sadece embed_pca_max_components yoksa kullanılmaz
+  pca_max_components: 16
+  # Metin gömme PCA boyutu (scalar_embed_pca, early_concat*, late_fusion_logreg3)
+  embed_pca_max_components: 64
+  threshold_objective: balanced_accuracy
+  ssl_pca_components: 128
+  late_fusion_oof_folds: 5
+  late_fusion_oof_branch_c: 1.0
+  late_fusion_meta_C: 1.0
+  logistic_c_values: [0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0, 30.0]

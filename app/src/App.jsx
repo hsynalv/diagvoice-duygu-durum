@@ -64,6 +64,8 @@ function App() {
   const [ageGenderError, setAgeGenderError] = useState(null);
   const [valenceResult, setValenceResult] = useState({ text: null, audio: null, fused: null });
   const [confidenceResult, setConfidenceResult] = useState(null);
+  const [benchmarkV2Result, setBenchmarkV2Result] = useState(null);
+  const [benchmarkV2Error, setBenchmarkV2Error] = useState(null);
   const [error, setError] = useState('');
   const [currentAnalysisSource, setCurrentAnalysisSource] = useState('');
   const [activePage, setActivePage] = useState('summary');
@@ -82,6 +84,8 @@ function App() {
     setAgeGenderError(null);
     setValenceResult({ text: null, audio: null, fused: null });
     setConfidenceResult(null);
+    setBenchmarkV2Result(null);
+    setBenchmarkV2Error(null);
     setCurrentAnalysisSource(sourceName);
 
     try {
@@ -128,6 +132,13 @@ function App() {
 
       if (result.confidence) {
         setConfidenceResult(result.confidence);
+      }
+
+      if (result.benchmark_v2) {
+        setBenchmarkV2Result(result.benchmark_v2);
+      }
+      if (typeof result.benchmark_v2_error === 'string') {
+        setBenchmarkV2Error(result.benchmark_v2_error);
       }
 
     } catch (err) {
@@ -220,6 +231,82 @@ function App() {
               </div>
             )}
 
+            {(benchmarkV2Result || benchmarkV2Error) && (
+              <div className="card health-card">
+                <div className="card-header">
+                  <div
+                    className="profile-indicator"
+                    style={{
+                      background:
+                        benchmarkV2Error || benchmarkV2Result?.error
+                          ? '#94a3b8'
+                          : benchmarkV2Result?.predicted_class === 1
+                            ? '#f59e0b'
+                            : '#10b981',
+                    }}
+                  />
+                  <h2>Benchmark v2 (İş sağlığı tabular)</h2>
+                </div>
+                {benchmarkV2Error && (
+                  <div className="error" style={{ marginTop: 0 }}>
+                    {benchmarkV2Error}
+                  </div>
+                )}
+                {benchmarkV2Result?.error && (
+                  <div className="error" style={{ marginTop: 0 }}>
+                    {typeof benchmarkV2Result.error === 'string'
+                      ? benchmarkV2Result.error
+                      : JSON.stringify(benchmarkV2Result.error)}
+                  </div>
+                )}
+                {benchmarkV2Result &&
+                  typeof benchmarkV2Result.positive_class_probability === 'number' &&
+                  !benchmarkV2Result.error && (
+                  <>
+                    <div className="main-result">
+                      <span
+                        className={`result-highlight ${
+                          benchmarkV2Result.predicted_class === 1 ? 'sick-text' : 'healthy-text'
+                        }`}
+                      >
+                        {benchmarkV2Result.predicted_class === 1 ? 'Tanılı riski' : 'Sağlıklı profil'}
+                      </span>
+                      <span className="confidence-badge">
+                        Eşik: %{Math.round((benchmarkV2Result.threshold_tuned ?? 0.5) * 100)}
+                      </span>
+                    </div>
+                    <div className="score-section">
+                      <div className="score-label">P(tanılı)</div>
+                      <div className="score-bar-container">
+                        <div
+                          className="score-bar"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              Math.min(100, (benchmarkV2Result.positive_class_probability || 0) * 100),
+                            )}%`,
+                            backgroundColor:
+                              (benchmarkV2Result.positive_class_probability || 0) >=
+                              (benchmarkV2Result.threshold_tuned ?? 0.5)
+                                ? '#f59e0b'
+                                : '#10b981',
+                          }}
+                        />
+                      </div>
+                      <div className="score-value">
+                        %{Math.round((benchmarkV2Result.positive_class_probability || 0) * 100)}
+                      </div>
+                    </div>
+                    {benchmarkV2Result.mode && (
+                      <div className="profile-confidence" style={{ marginTop: '0.5rem' }}>
+                        Model modu: {benchmarkV2Result.mode}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {mentalFitnessResult && (
               <div className="card wellness-card">
                 <div className="card-header">
@@ -290,7 +377,8 @@ function App() {
             audioEmotionResult={audioEmotionResult}
             ageGenderResult={ageGenderResult}
             ageGenderError={ageGenderError}
-            depressionResult={depressionResult}
+            benchmarkV2Result={benchmarkV2Result}
+            benchmarkV2Error={benchmarkV2Error}
             valenceResult={valenceResult}
             confidenceResult={confidenceResult}
           />
