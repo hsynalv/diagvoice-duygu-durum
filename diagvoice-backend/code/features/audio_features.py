@@ -1,7 +1,7 @@
 """
 Ses dosyasından librosa tabanlı skaler özellikler.
-Eğitimdeki sütun adları farklıysa imputer NaN doldurur; tam uyum için benchmark repo'daki
-extract_audio_features_dict ile değiştirin veya DIAGVOICE_CODE_ROOT ile o paketi öne alın.
+Sütun adları `training/04_train_eval.scalar_columns` ile uyumlu: `audio_*` öneki (osm_* ayrı modül).
+Praat / farklı istatistik seti eğitimde kullanıldıysa DIAGVOICE_CODE_ROOT ile tam pipeline kopyalayın.
 """
 from __future__ import annotations
 
@@ -56,30 +56,31 @@ def extract_audio_features_dict(
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13, hop_length=hop_length)
     delta = librosa.feature.delta(mfcc)
 
-    def stat(name: str, arr: np.ndarray) -> dict[str, float]:
+    def stat(prefix: str, arr: np.ndarray) -> dict[str, float]:
         a = np.asarray(arr, dtype=np.float64).ravel()
         a = a[np.isfinite(a)]
         if a.size == 0:
-            return {f"{name}_mean": float("nan"), f"{name}_std": float("nan")}
-        return {f"{name}_mean": _safe_float(np.mean(a)), f"{name}_std": _safe_float(np.std(a))}
+            return {f"{prefix}_mean": float("nan"), f"{prefix}_std": float("nan")}
+        return {f"{prefix}_mean": _safe_float(np.mean(a)), f"{prefix}_std": _safe_float(np.std(a))}
 
+    # Eğitim (04_train_eval.scalar_columns): yalnızca audio_ / text_ / meta_ / osm_ önekleri
     out: dict[str, Any] = {"audio_duration_sec": duration}
-    out.update(stat("rms", rms))
-    out.update(stat("zcr", zcr))
-    out.update(stat("spec_cent", cent))
-    out.update(stat("spec_roll", rolloff))
-    out.update(stat("spec_bw", bandwidth))
-    out.update(stat("spec_flat", flatness))
-    out["tempo_bpm"] = tempo
+    out.update(stat("audio_rms", rms))
+    out.update(stat("audio_zcr", zcr))
+    out.update(stat("audio_spec_cent", cent))
+    out.update(stat("audio_spec_roll", rolloff))
+    out.update(stat("audio_spec_bw", bandwidth))
+    out.update(stat("audio_spec_flat", flatness))
+    out["audio_tempo_bpm"] = tempo
 
     for i in range(min(13, mfcc.shape[0])):
-        out.update(stat(f"mfcc_{i}", mfcc[i]))
-        out.update(stat(f"mfcc_d_{i}", delta[i]))
+        out.update(stat(f"audio_mfcc_{i}", mfcc[i]))
+        out.update(stat(f"audio_mfcc_d_{i}", delta[i]))
 
     for k in range(min(7, contrast.shape[0])):
-        out.update(stat(f"spec_contrast_{k}", contrast[k]))
+        out.update(stat(f"audio_spec_contrast_{k}", contrast[k]))
 
     rms_trim = librosa.feature.rms(y=y_trim, hop_length=hop_length)[0] if y_trim.size else rms
-    out["rms_trim_mean"] = _safe_float(np.mean(rms_trim))
+    out["audio_rms_trim_mean"] = _safe_float(np.mean(rms_trim))
 
     return out

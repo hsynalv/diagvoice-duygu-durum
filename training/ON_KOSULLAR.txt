@@ -1,0 +1,16 @@
+Eğitim (04_train_eval.py) şu dosyaları ister; bunlar ana benchmark hattıyla
+experiments/benchmark_v2/outputs/ altında üretilir:
+
+  features/merged.parquet     → 03_materialize_features.py
+  splits/split_assignments.parquet → 02_make_splits.py
+  (öncesinde) artifacts/file_index  → 01_build_index.py
+
+Çalıştırma (proje kökünden, is-sagligi):
+
+  python experiments/benchmark_v2/01_build_index.py --config experiments/benchmark_v2/config.yaml
+  python experiments/benchmark_v2/02_make_splits.py --config ...
+  python experiments/benchmark_v2/03_materialize_features.py --config ... --step all
+
+  python inference_api/training/04_train_eval.py --save-models --copy-to-api-model
+
+--copy-to-api-model: scalar_hgb.joblib → ../models/model.joblib (API’ın yüklediği dosya).
