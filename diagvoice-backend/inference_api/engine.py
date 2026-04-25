@@ -121,44 +121,23 @@ def _vectorize(cols: list[str], row: dict[str, Any]) -> np.ndarray:
     return r
 
 
-def _row_from_audio(audio_path: str, transcript: str, af: dict[str, Any]) -> dict[str, Any]:
+def _row_from_audio(audio_path: str, transcript: str, cfg_full: dict[str, Any]) -> dict[str, Any]:
     setup_sys_path()
-    from features.audio_features import extract_audio_features_dict
-    from features.text_features import extract_text_features_dict
+    from features.benchmark_tabular_row import build_tabular_dict_from_config
 
-    out: dict[str, Any] = {}
-    t_sr = int(af.get("target_sr", 16000))
-    top_db = float(af.get("top_db", 35.0))
-    hop = int(af.get("hop_length", 512))
-    praat = bool(af.get("praat_voice", False))
-    use_osm = bool(af.get("opensmile_egemaps", False))
-
-    a = extract_audio_features_dict(
+    strict = os.environ.get("DIAGVOICE_STRICT_FEATURES", "").lower() in ("1", "true", "yes")
+    row = build_tabular_dict_from_config(
         audio_path,
-        target_sr=t_sr,
-        top_db=top_db,
-        hop_length=hop,
-        run_praat_voice=praat,
+        transcript,
+        cfg_full,
+        strict_opensmile=strict,
     )
-    for k, v in a.items():
-        out[k] = float(v) if v is not None and not (isinstance(v, float) and math.isnan(v)) else v
-
-    td = extract_text_features_dict(transcript)
-    for k, v in td.items():
+    out: dict[str, Any] = {}
+    for k, v in row.items():
         if v is None or (isinstance(v, float) and math.isnan(v)):
             out[k] = float("nan")
         else:
             out[k] = float(v)
-
-    if use_osm:
-        try:
-            from features.opensmile_features import extract_opensmile_egemaps_dict
-
-            o = extract_opensmile_egemaps_dict(audio_path, target_sr=t_sr)
-            for k, v in o.items():
-                out[k] = float(v)
-        except Exception:
-            pass
     return out
 
 
@@ -266,12 +245,10 @@ def predict_from_uploaded_file(tmp_path: str, transcript: str, _ext: str = "") -
     cfg_full = _load_yaml(load_config_path())
     cfg_full = dict(cfg_full)
     cfg_full["transcript"] = transcript.strip()
-    af = _cfg_audio()
-
     _, bundle = load_bundle()
     t_thresh, t_obj = threshold_from_bundle(bundle)
 
-    row = _row_from_audio(tmp_path, transcript.strip(), af)
+    row = _row_from_audio(tmp_path, transcript.strip(), cfg_full)
     p_pos = predict_proba_from_bundle(bundle, row, cfg_full)
     y_hat = 1 if p_pos >= t_thresh else 0
 

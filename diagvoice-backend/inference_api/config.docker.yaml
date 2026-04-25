@@ -1,12 +1,12 @@
-# Konteyner içi inference — ağır / opsiyonel bağımlılıklar kapalı.
+# Konteyner içi inference — egitim pipeline'i ile uyumlu ayarlar.
 random_seed: 42
 
 audio_features:
   target_sr: 16000
   top_db: 35.0
   hop_length: 512
-  praat_voice: false
-  opensmile_egemaps: false
+  praat_voice: true
+  opensmile_egemaps: true
 
 text_embeddings:
   enabled: false

@@ -12,6 +12,8 @@ librosa
 pydub
 accelerate
 soundfile
+opensmile
+parselmouth
 openpyxl
 pandas
 scikit-learn
