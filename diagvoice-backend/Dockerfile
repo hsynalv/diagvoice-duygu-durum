@@ -13,6 +13,8 @@ RUN apt-get update \
         ffmpeg \
         supervisor \
         libsndfile1 \
+        build-essential \
+        cmake \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
