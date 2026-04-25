@@ -245,7 +245,7 @@ function App() {
                             : '#10b981',
                     }}
                   />
-                  <h2>Benchmark v2 (İş sağlığı tabular)</h2>
+                  <h2>İş Sağlığı</h2>
                 </div>
                 {benchmarkV2Error && (
                   <div className="error" style={{ marginTop: 0 }}>
@@ -377,8 +377,6 @@ function App() {
             audioEmotionResult={audioEmotionResult}
             ageGenderResult={ageGenderResult}
             ageGenderError={ageGenderError}
-            benchmarkV2Result={benchmarkV2Result}
-            benchmarkV2Error={benchmarkV2Error}
             valenceResult={valenceResult}
             confidenceResult={confidenceResult}
           />
