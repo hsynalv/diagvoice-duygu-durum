@@ -13,7 +13,7 @@ pydub
 accelerate
 soundfile
 opensmile
-parselmouth
+praat-parselmouth
 openpyxl
 pandas
 scikit-learn
