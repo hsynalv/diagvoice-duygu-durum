@@ -44,6 +44,9 @@ const GENDER_LABELS = {
   'female': { tr: 'Kadın', color: '#ec4899' }
 };
 
+/** İş Sağlığı benchmark özet kartı: yalnızca arayüz; P(tanılı) ≥ bu oran → "Tanılı riski" */
+const BENCHMARK_POSITIVE_UI_THRESHOLD = 0.5;
+
 function getEmotionLabel(pred_label) {
   return EMOTION_LABELS[pred_label]?.tr || pred_label;
 }
@@ -237,12 +240,12 @@ function App() {
                   <div
                     className="profile-indicator"
                     style={{
-                      background:
-                        benchmarkV2Error || benchmarkV2Result?.error
-                          ? '#94a3b8'
-                          : benchmarkV2Result?.predicted_class === 1
-                            ? '#f59e0b'
-                            : '#10b981',
+                      background: (() => {
+                        if (benchmarkV2Error || benchmarkV2Result?.error) return '#94a3b8';
+                        const p = benchmarkV2Result?.positive_class_probability;
+                        if (typeof p !== 'number') return '#94a3b8';
+                        return p >= BENCHMARK_POSITIVE_UI_THRESHOLD ? '#f59e0b' : '#10b981';
+                      })(),
                     }}
                   />
                   <h2>İş Sağlığı</h2>
@@ -261,49 +264,44 @@ function App() {
                 )}
                 {benchmarkV2Result &&
                   typeof benchmarkV2Result.positive_class_probability === 'number' &&
-                  !benchmarkV2Result.error && (
-                  <>
-                    <div className="main-result">
-                      <span
-                        className={`result-highlight ${
-                          benchmarkV2Result.predicted_class === 1 ? 'sick-text' : 'healthy-text'
-                        }`}
-                      >
-                        {benchmarkV2Result.predicted_class === 1 ? 'Tanılı riski' : 'Sağlıklı profil'}
-                      </span>
-                      <span className="confidence-badge">
-                        Eşik: %{Math.round((benchmarkV2Result.threshold_tuned ?? 0.5) * 100)}
-                      </span>
-                    </div>
-                    <div className="score-section">
-                      <div className="score-label">P(tanılı)</div>
-                      <div className="score-bar-container">
-                        <div
-                          className="score-bar"
-                          style={{
-                            width: `${Math.max(
-                              0,
-                              Math.min(100, (benchmarkV2Result.positive_class_probability || 0) * 100),
-                            )}%`,
-                            backgroundColor:
-                              (benchmarkV2Result.positive_class_probability || 0) >=
-                              (benchmarkV2Result.threshold_tuned ?? 0.5)
-                                ? '#f59e0b'
-                                : '#10b981',
-                          }}
-                        />
-                      </div>
-                      <div className="score-value">
-                        %{Math.round((benchmarkV2Result.positive_class_probability || 0) * 100)}
-                      </div>
-                    </div>
-                    {benchmarkV2Result.mode && (
-                      <div className="profile-confidence" style={{ marginTop: '0.5rem' }}>
-                        Model modu: {benchmarkV2Result.mode}
-                      </div>
-                    )}
-                  </>
-                )}
+                  !benchmarkV2Result.error &&
+                  (() => {
+                    const pTan = benchmarkV2Result.positive_class_probability ?? 0;
+                    const uiTanili = pTan >= BENCHMARK_POSITIVE_UI_THRESHOLD;
+                    return (
+                      <>
+                        <div className="main-result">
+                          <span
+                            className={`result-highlight ${uiTanili ? 'sick-text' : 'healthy-text'}`}
+                          >
+                            {uiTanili ? 'Tanılı riski' : 'Sağlıklı profil'}
+                          </span>
+                          <span className="confidence-badge">
+                            Eşik: %{Math.round(BENCHMARK_POSITIVE_UI_THRESHOLD * 100)}
+                          </span>
+                        </div>
+                        <div className="score-section">
+                          <div className="score-label">P(tanılı)</div>
+                          <div className="score-bar-container">
+                            <div
+                              className="score-bar"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, pTan * 100))}%`,
+                                backgroundColor:
+                                  pTan >= BENCHMARK_POSITIVE_UI_THRESHOLD ? '#f59e0b' : '#10b981',
+                              }}
+                            />
+                          </div>
+                          <div className="score-value">%{Math.round(pTan * 100)}</div>
+                        </div>
+                        {benchmarkV2Result.mode && (
+                          <div className="profile-confidence" style={{ marginTop: '0.5rem' }}>
+                            Model modu: {benchmarkV2Result.mode}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
               </div>
             )}
 
