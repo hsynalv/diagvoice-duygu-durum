@@ -3,70 +3,35 @@ import './App.css';
 import AudioRecorder from './components/AudioRecorder';
 import SampleAudioPlayer from './components/SampleAudioPlayer';
 import AudioFilePicker from './components/AudioFilePicker';
-import SentimentVisualizer from './components/SentimentVisualizer';
-import Tooltip from './components/Tooltip';
+// import SentimentVisualizer from './components/SentimentVisualizer';
 import { analyzeFused } from './services/analyzeFused';
 import logo from './logo.jpg';
-import ModelDetailsPage from './components/ModelDetailsPage';
+// Geçici: sadece özet skorlar — model detayları sekmesi kapalı
+// import ModelDetailsPage from './components/ModelDetailsPage';
 
-// Probability bar component
-function ProbBar({ label, value, color }) {
-  const percentage = Math.round(value * 100);
-  return (
-    <div className="prob-bar-row">
-      <span className="prob-label">{label}</span>
-      <div className="prob-bar-container">
-        <div 
-          className="prob-bar-fill" 
-          style={{ width: `${percentage}%`, backgroundColor: color }}
-        />
-        <span className="prob-value">{percentage}%</span>
-      </div>
-    </div>
-  );
-}
-
-// Emotion mapping for audio results
-const EMOTION_LABELS = {
-  'sadness': { tr: 'Üzüntü', color: '#6366f1' },
-  'fear': { tr: 'Korku', color: '#8b5cf6' },
-  'happiness': { tr: 'Mutluluk', color: '#10b981' },
-  'anger': { tr: 'Öfke', color: '#ef4444' },
-  'happy': { tr: 'Mutlu', color: '#10b981' },
-  'sad': { tr: 'Üzgün', color: '#6366f1' },
-  'angry': { tr: 'Sinirli', color: '#ef4444' },
-  'fearful': { tr: 'Korkulu', color: '#8b5cf6' }
-};
-
-// Gender mapping
-const GENDER_LABELS = {
-  'male': { tr: 'Erkek', color: '#3b82f6' },
-  'female': { tr: 'Kadın', color: '#ec4899' }
-};
+// Geçici: WURSS / emosyon kartları kapalıyken yorumda
+// function ProbBar({ label, value, color }) { ... }
+// const EMOTION_LABELS = { ... }
+// const GENDER_LABELS = { ... }
+// function getEmotionLabel(pred_label) { ... }
+// function getEmotionColor(pred_label) { ... }
 
 /** İş Sağlığı benchmark özet kartı: yalnızca arayüz; P(tanılı) ≥ bu oran → "Tanılı riski" */
 const BENCHMARK_POSITIVE_UI_THRESHOLD = 0.5;
 
-function getEmotionLabel(pred_label) {
-  return EMOTION_LABELS[pred_label]?.tr || pred_label;
-}
-
-function getEmotionColor(pred_label) {
-  return EMOTION_LABELS[pred_label]?.color || '#6b7280';
-}
-
 function App() {
   const [isLoading, setIsLoading] = useState(false);
-  const [transcribedText, setTranscribedText] = useState('');
-  const [sentimentResult, setSentimentResult] = useState({ sentiment: null, score: null });
-  const [audioEmotionResult, setAudioEmotionResult] = useState(null);
-  const [diseaseResult, setDiseaseResult] = useState(null);
+  // Alt çizgi: arayüzde geçici gizlendi, setter'lar hâlâ doldurulur
+  const [_transcribedText, setTranscribedText] = useState('');
+  const [_sentimentResult, setSentimentResult] = useState({ sentiment: null, score: null });
+  const [_audioEmotionResult, setAudioEmotionResult] = useState(null);
+  const [_diseaseResult, setDiseaseResult] = useState(null);
   const [depressionResult, setDepressionResult] = useState(null);
-  const [mentalFitnessResult, setMentalFitnessResult] = useState(null);
-  const [ageGenderResult, setAgeGenderResult] = useState(null);
-  const [ageGenderError, setAgeGenderError] = useState(null);
-  const [valenceResult, setValenceResult] = useState({ text: null, audio: null, fused: null });
-  const [confidenceResult, setConfidenceResult] = useState(null);
+  const [_mentalFitnessResult, setMentalFitnessResult] = useState(null);
+  const [_ageGenderResult, setAgeGenderResult] = useState(null);
+  const [_ageGenderError, setAgeGenderError] = useState(null);
+  const [_valenceResult, setValenceResult] = useState({ text: null, audio: null, fused: null });
+  const [_confidenceResult, setConfidenceResult] = useState(null);
   const [benchmarkV2Result, setBenchmarkV2Result] = useState(null);
   const [benchmarkV2Error, setBenchmarkV2Error] = useState(null);
   const [error, setError] = useState('');
@@ -169,6 +134,7 @@ function App() {
         >
           Özet
         </button>
+        {/* Geçici: model detayları sekmesi kapalı
         <button
           className={`tab-button ${activePage === 'details' ? 'active' : 'secondary'}`}
           onClick={() => setActivePage('details')}
@@ -177,6 +143,7 @@ function App() {
         >
           Model Detayları
         </button>
+        */}
       </div>
       
       <div className="main-grid">
@@ -192,6 +159,7 @@ function App() {
       <section className="results-section">
         {activePage === 'summary' && (
           <>
+            {/* Geçici: sadece İş Sağlığı + Depresyon skorları — diğer kartlar kapalı
             {transcribedText && (
               <div className="card transcribed-text">
                 <h2>Çevrilen Metin</h2>
@@ -233,6 +201,7 @@ function App() {
                 </div>
               </div>
             )}
+            */}
 
             {(benchmarkV2Result || benchmarkV2Error) && (
               <div className="card health-card">
@@ -305,6 +274,7 @@ function App() {
               </div>
             )}
 
+            {/* Geçici: mental fitness gizlendi
             {mentalFitnessResult && (
               <div className="card wellness-card">
                 <div className="card-header">
@@ -330,6 +300,7 @@ function App() {
                 )}
               </div>
             )}
+            */}
 
             {depressionResult && (
               <div className="card health-card">
@@ -361,15 +332,18 @@ function App() {
               </div>
             )}
 
+            {/* Geçici: metin duygusu gizlendi
             {sentimentResult.sentiment && (
               <SentimentVisualizer
                 sentiment={sentimentResult.sentiment}
                 score={sentimentResult.score}
               />
             )}
+            */}
           </>
         )}
 
+        {/* Geçici: model detayları sayfası kapalı
         {activePage === 'details' && (
           <ModelDetailsPage
             audioEmotionResult={audioEmotionResult}
@@ -379,6 +353,7 @@ function App() {
             confidenceResult={confidenceResult}
           />
         )}
+        */}
       </section>
     </div>
   );
