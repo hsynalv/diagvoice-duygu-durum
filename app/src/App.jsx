@@ -313,6 +313,11 @@ function App() {
               const riskColor = (rl && DEPRESSION_RISK_COLOR[rl]) || '#6b7280';
               const depressionStatus =
                 depressionResult.pred_label === 'depresyon' ? 'Depresyon Riski' : 'Sağlıklı';
+              const showRiskLevel = depressionResult.pred_label === 'depresyon';
+              const finalProb =
+                typeof depressionResult.final_prob_depression === 'number'
+                  ? Math.max(0, Math.min(1, depressionResult.final_prob_depression))
+                  : null;
               return (
                 <div className="card health-card">
                   <div className="card-header">
@@ -323,9 +328,16 @@ function App() {
                     <span className="result-highlight" style={{ color: riskColor }}>
                       Durum: {depressionStatus}
                     </span>
-                    <span className="result-highlight" style={{ color: riskColor }}>
-                      Risk seviyesi: {riskTr}
-                    </span>
+                    {showRiskLevel && (
+                      <span className="result-highlight" style={{ color: riskColor }}>
+                        Risk seviyesi: {riskTr}
+                      </span>
+                    )}
+                    {finalProb !== null && (
+                      <span className="result-highlight" style={{ color: '#64748b' }}>
+                        Final olasılık: %{Math.round(finalProb * 100)}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
