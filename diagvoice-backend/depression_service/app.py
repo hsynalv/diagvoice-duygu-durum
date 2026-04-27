@@ -245,10 +245,18 @@ async def analyze_depression(file: UploadFile = File(...)):
         else:
             reliability = "yuksek"
 
+        if final_prob < 0.2:
+            risk_level = "dusuk"
+        elif final_prob < 0.5:
+            risk_level = "orta"
+        else:
+            risk_level = "yuksek"
+
         return {
         "pred_id": pred_id,
         "pred_label": pred_label,
-    
+        "risk_level": risk_level,
+
         "final_prob_depression": final_prob,
         "mean_prob_depression": mean_prob,
         "median_prob_depression": median_prob,

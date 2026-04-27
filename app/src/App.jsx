@@ -19,6 +19,9 @@ import logo from './logo.jpg';
 /** İş Sağlığı benchmark özet kartı: yalnızca arayüz; P(tanılı) ≥ bu oran → "Tanılı riski" */
 const BENCHMARK_POSITIVE_UI_THRESHOLD = 0.5;
 
+const DEPRESSION_RISK_TR = { dusuk: 'Düşük', orta: 'Orta', yuksek: 'Yüksek' };
+const DEPRESSION_RISK_COLOR = { dusuk: '#10b981', orta: '#f59e0b', yuksek: '#ef4444' };
+
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   // Alt çizgi: arayüzde geçici gizlendi, setter'lar hâlâ doldurulur
@@ -302,35 +305,24 @@ function App() {
             )}
             */}
 
-            {depressionResult && (
-              <div className="card health-card">
-                <div className="card-header">
-                  <div className="profile-indicator" style={{ background: depressionResult.pred_id === 1 ? '#ef4444' : '#10b981' }}></div>
-                  <h2>Depresyon Skoru</h2>
-                </div>
-                <div className="main-result">
-                  <span className={`result-highlight ${depressionResult.pred_id === 1 ? 'sick-text' : 'healthy-text'}`}>
-                    {depressionResult.pred_label === 'depresyon' ? 'Depresyon Riski' : 'Sağlıklı Profil'}
-                  </span>
-                  <span className="confidence-badge">
-                    Eşik: %{Math.round((depressionResult.threshold ?? 0.5) * 100)}
-                  </span>
-                </div>
-                <div className="score-section">
-                  <div className="score-label">Ortalama Depresyon Olasılığı</div>
-                  <div className="score-bar-container">
-                    <div
-                      className="score-bar"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, (depressionResult.mean_prob_depression || 0) * 100))}%`,
-                        backgroundColor: (depressionResult.mean_prob_depression || 0) >= (depressionResult.threshold ?? 0.5) ? '#ef4444' : '#10b981'
-                      }}
-                    />
+            {depressionResult && (() => {
+              const rl = depressionResult.risk_level;
+              const riskTr = (rl && DEPRESSION_RISK_TR[rl]) || '—';
+              const riskColor = (rl && DEPRESSION_RISK_COLOR[rl]) || '#6b7280';
+              return (
+                <div className="card health-card">
+                  <div className="card-header">
+                    <div className="profile-indicator" style={{ background: riskColor }}></div>
+                    <h2>Depresyon</h2>
                   </div>
-                  <div className="score-value">%{Math.round((depressionResult.mean_prob_depression || 0) * 100)}</div>
+                  <div className="main-result" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <span className="result-highlight" style={{ color: riskColor }}>
+                      Risk seviyesi: {riskTr}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Geçici: metin duygusu gizlendi
             {sentimentResult.sentiment && (
