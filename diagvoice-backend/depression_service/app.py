@@ -218,20 +218,53 @@ async def analyze_depression(file: UploadFile = File(...)):
         probs_depression = np.concatenate(probs_list, axis=0)
 
         mean_prob = float(np.mean(probs_depression))
+        median_prob = float(np.median(probs_depression))
+        std_prob = float(np.std(probs_depression))
+        min_prob = float(np.min(probs_depression))
         max_prob = float(np.max(probs_depression))
-        pred_id = 1 if mean_prob >= THRESHOLD else 0
+
+        if len(probs_depression) >= 5:
+            low = np.percentile(probs_depression, 10)
+            high = np.percentile(probs_depression, 90)
+            trimmed = probs_depression[
+                (probs_depression >= low) & (probs_depression <= high)
+            ]
+            trimmed_mean_prob = float(np.mean(trimmed)) if len(trimmed) > 0 else mean_prob
+        else:
+            trimmed_mean_prob = mean_prob
+
+        final_prob = float(0.5 * median_prob + 0.5 * trimmed_mean_prob)
+
+        pred_id = 1 if final_prob >= THRESHOLD else 0
         pred_label = "depresyon" if pred_id == 1 else "saglikli"
 
+        if std_prob >= 0.25:
+            reliability = "dusuk"
+        elif 0.35 <= final_prob <= 0.65:
+            reliability = "orta"
+        else:
+            reliability = "yuksek"
+
         return {
-            "pred_id": pred_id,
-            "pred_label": pred_label,
-            "mean_prob_depression": mean_prob,
-            "max_prob_depression": max_prob,
-            "segment_count": int(len(segments)),
-            "threshold": THRESHOLD,
-            "segment_probs": [float(x) for x in probs_depression.tolist()],
-            "labels": {"0": "saglikli", "1": "depresyon"},
-        }
+        "pred_id": pred_id,
+        "pred_label": pred_label,
+    
+        "final_prob_depression": final_prob,
+        "mean_prob_depression": mean_prob,
+        "median_prob_depression": median_prob,
+        "trimmed_mean_prob_depression": trimmed_mean_prob,
+        "std_prob_depression": std_prob,
+        "min_prob_depression": min_prob,
+        "max_prob_depression": max_prob,
+    
+        "reliability": reliability,
+        "is_unstable": bool(std_prob >= 0.25),
+    
+        "segment_count": int(len(segments)),
+        "threshold": THRESHOLD,
+        "segment_probs": [float(x) for x in probs_depression.tolist()],
+        "labels": {"0": "saglikli", "1": "depresyon"},
+    }
     except Exception as e:
         print("Depression endpoint failed:")
         print(traceback.format_exc())
