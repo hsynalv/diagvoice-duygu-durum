@@ -287,82 +287,23 @@ async def analyze_fused(file: UploadFile = File(...)):
 
         benchmark_v2_result: Optional[Dict[str, Any]] = None
         benchmark_v2_err: Optional[str] = None
+        stt_text: Optional[str] = None
+        stt_err: Optional[str] = "skipped: disabled for fast mode"
+        audio_result: Optional[Dict[str, Any]] = None
+        audio_err: Optional[str] = "skipped: disabled for fast mode"
+        text_result: Optional[Dict[str, Any]] = None
+        text_err: Optional[str] = "skipped: disabled for fast mode"
+        disease_result: Optional[Dict[str, Any]] = None
+        disease_err: Optional[str] = "skipped: disabled for fast mode"
+        mental_fitness_result: Optional[Dict[str, Any]] = None
+        mental_fitness_err: Optional[str] = "skipped: disabled for fast mode"
+        age_gender_result: Optional[Dict[str, Any]] = None
+        age_gender_err: Optional[str] = "skipped: disabled for fast mode"
+        depression_result: Optional[Dict[str, Any]] = None
+        depression_err: Optional[str] = None
 
         async with httpx.AsyncClient(timeout=timeout) as client:
-            # Call voice-to-text
-            stt_text: Optional[str] = None
-            stt_err: Optional[str] = None
-            try:
-                with open(tmp_path, "rb") as f:
-                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
-                    r = await client.post(VOICE_TO_TEXT_URL, files=files)
-                r.raise_for_status()
-                stt_text = r.json().get("text")
-            except Exception as e:
-                stt_err = f"voice_to_text request failed (url={VOICE_TO_TEXT_URL}): {e}"
-
-            # Call voice-to-sentiment (audio emotion)
-            audio_result: Optional[Dict[str, Any]] = None
-            audio_err: Optional[str] = None
-            try:
-                with open(tmp_path, "rb") as f:
-                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
-                    r = await client.post(VOICE_TO_SENTIMENT_URL, files=files)
-                r.raise_for_status()
-                audio_result = r.json()
-            except Exception as e:
-                audio_err = f"voice_to_sentiment request failed (url={VOICE_TO_SENTIMENT_URL}): {e}"
-
-            # Call text-to-sentiment (only if we got text)
-            text_result: Optional[Dict[str, Any]] = None
-            text_err: Optional[str] = None
-            if stt_text:
-                try:
-                    r = await client.post(TEXT_TO_SENTIMENT_URL, json={"text": stt_text})
-                    r.raise_for_status()
-                    text_result = r.json()
-                except Exception as e:
-                    text_err = f"text_to_sentiment request failed (url={TEXT_TO_SENTIMENT_URL}): {e}"
-
-            # Call disease-service (healthy/sick)
-            disease_result: Optional[Dict[str, Any]] = None
-            disease_err: Optional[str] = None
-            try:
-                with open(tmp_path, "rb") as f:
-                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
-                    r = await client.post(DISEASE_SERVICE_URL, files=files)
-                r.raise_for_status()
-                disease_result = r.json()
-            except Exception as e:
-                disease_err = f"disease_service request failed (url={DISEASE_SERVICE_URL}): {e}"
-
-            # Call mental-fitness service (canlıda olan modeli)
-            mental_fitness_result: Optional[Dict[str, Any]] = None
-            mental_fitness_err: Optional[str] = None
-            try:
-                with open(tmp_path, "rb") as f:
-                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
-                    r = await client.post(MENTAL_FITNESS_URL, files=files)
-                r.raise_for_status()
-                mental_fitness_result = r.json()
-            except Exception as e:
-                mental_fitness_err = f"mental_fitness request failed (url={MENTAL_FITNESS_URL}): {e}"
-
-            # Call age-gender service
-            age_gender_result: Optional[Dict[str, Any]] = None
-            age_gender_err: Optional[str] = None
-            try:
-                with open(tmp_path, "rb") as f:
-                    files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
-                    r = await client.post(AGE_GENDER_URL, files=files)
-                r.raise_for_status()
-                age_gender_result = r.json()
-            except Exception as e:
-                age_gender_err = f"age_gender request failed (url={AGE_GENDER_URL}): {e}"
-
-            # Call depression service
-            depression_result: Optional[Dict[str, Any]] = None
-            depression_err: Optional[str] = None
+            # Fast mode: sadece depression + benchmark_v2 çağrılır.
             try:
                 with open(tmp_path, "rb") as f:
                     files = {"file": (file.filename or "audio", f, file.content_type or "application/octet-stream")}
@@ -384,7 +325,7 @@ async def analyze_fused(file: UploadFile = File(...)):
                                 file.content_type or "application/octet-stream",
                             )
                         }
-                        data = {"transcript": stt_text or ""}
+                        data = {"transcript": ""}
                         r = await client.post(predict_url, files=files, data=data)
                     r.raise_for_status()
                     benchmark_v2_result = r.json()
