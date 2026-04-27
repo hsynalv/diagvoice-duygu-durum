@@ -206,6 +206,8 @@ function App() {
             )}
             */}
 
+            {/* Geçici: WURSS (hastalık) kartı kapalı */}
+
             {(benchmarkV2Result || benchmarkV2Error) && (
               <div className="card health-card">
                 <div className="card-header">
@@ -309,6 +311,8 @@ function App() {
               const rl = depressionResult.risk_level;
               const riskTr = (rl && DEPRESSION_RISK_TR[rl]) || '—';
               const riskColor = (rl && DEPRESSION_RISK_COLOR[rl]) || '#6b7280';
+              const depressionStatus =
+                depressionResult.pred_label === 'depresyon' ? 'Depresyon Riski' : 'Sağlıklı';
               return (
                 <div className="card health-card">
                   <div className="card-header">
@@ -316,6 +320,9 @@ function App() {
                     <h2>Depresyon</h2>
                   </div>
                   <div className="main-result" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem' }}>
+                    <span className="result-highlight" style={{ color: riskColor }}>
+                      Durum: {depressionStatus}
+                    </span>
                     <span className="result-highlight" style={{ color: riskColor }}>
                       Risk seviyesi: {riskTr}
                     </span>
