@@ -334,9 +334,19 @@ function App() {
                       </span>
                     )}
                     {finalProb !== null && (
-                      <span className="result-highlight" style={{ color: '#64748b' }}>
-                        Final olasılık: %{Math.round(finalProb * 100)}
-                      </span>
+                      <div className="score-section" style={{ width: '100%' }}>
+                        <div className="score-label">Skor</div>
+                        <div className="score-bar-container">
+                          <div
+                            className="score-bar"
+                            style={{
+                              width: `${Math.round(finalProb * 100)}%`,
+                              backgroundColor: riskColor,
+                            }}
+                          />
+                        </div>
+                        <div className="score-value">%{Math.round(finalProb * 100)}</div>
+                      </div>
                     )}
                   </div>
                 </div>
